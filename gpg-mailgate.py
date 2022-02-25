@@ -39,30 +39,20 @@ import traceback
 from M2Crypto import BIO, Rand, SMIME, X509
 from email.mime.message import MIMEMessage
 
-# Environment variable name we read to retrieve configuration path.  This is to
-# enable non-root users to set up and run GPG Mailgate and to make the software
-# testable.
-CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
-
-# Read configuration from /etc/gpg-mailgate.conf
-_cfg = RawConfigParser()
-_cfg.read(os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf'))
-cfg = dict()
-for sect in _cfg.sections():
-	cfg[sect] = dict()
-	for (name, value) in _cfg.items(sect):
-		cfg[sect][name] = value
+import logging
+import lacre
+import lacre.config as conf
 
 def log( msg ):
-	if 'logging' in cfg and 'file' in cfg['logging']:
-		if cfg['logging'].get('file') == "syslog":
+	if conf.config_item_set("logging", "file"):
+		if conf.config_item_equals('logging', 'file', "syslog"):
 			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
 		else:
-			logfile = open(cfg['logging']['file'], 'a')
+			logfile = open(conf.get_item('logging', 'file'), 'a')
 			logfile.write(msg + "\n")
 			logfile.close()
 
-verbose = 'logging' in cfg and 'verbose' in cfg['logging'] and cfg['logging'].get('verbose') == 'yes'
+verbose = conf.verbose_logging_enabled()
 
 # Read e-mail from stdin
 raw = sys.stdin.read()
@@ -72,11 +62,11 @@ to_addrs = sys.argv[1:]
 
 def gpg_encrypt( raw_message, recipients ):
 
-	if not get_bool_from_cfg('gpg', 'keyhome'):
+	if not conf.config_item_set('gpg', 'keyhome'):
 		log("No valid entry for gpg keyhome. Encryption aborted.")
 		return recipients
 
-	keys = GnuPG.public_keys( cfg['gpg']['keyhome'] )
+	keys = GnuPG.public_keys( conf.get_item('gpg', 'keyhome') )
 	for fingerprint in keys:
 		keys[fingerprint] = sanitize_case_sense(keys[fingerprint])
 
@@ -86,17 +76,17 @@ def gpg_encrypt( raw_message, recipients ):
 	for to in recipients:
 
 		# Check if recipient is in keymap
-		if get_bool_from_cfg('enc_keymap', to):
-			log("Encrypt keymap has key '%s'" % cfg['enc_keymap'][to] )
+		if conf.config_item_set('enc_keymap', to):
+			log("Encrypt keymap has key '%s'" % conf.get_item('enc_keymap', to) )
 			# Check we've got a matching key!
-			if cfg['enc_keymap'][to] in keys:
-				gpg_to.append( (to, cfg['enc_keymap'][to]) )
+			if conf.get_item('enc_keymap', to) in keys:
+				gpg_to.append( (to, conf.get_item('enc_keymap', to)) )
 				continue
 			else:
-				log("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (cfg['enc_keymap'][to], to))
+				log("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (conf.get_item('enc_keymap', to), to))
 
 		# Check if key in keychain is present
-		if to in keys.values() and not get_bool_from_cfg('default', 'enc_keymap_only', 'yes'):
+		if to in keys.values() and not conf.config_item_equals('default', 'enc_keymap_only', 'yes'):
 			gpg_to.append( (to, to) )
 			continue
 
@@ -104,15 +94,15 @@ def gpg_encrypt( raw_message, recipients ):
 		splitted_to = to.split('@')
 		if len(splitted_to) > 1:
 			domain = splitted_to[1]
-			if get_bool_from_cfg('enc_domain_keymap', domain):
-				log("Encrypt domain keymap has key '%s'" % cfg['enc_dec_keymap'][domain] )
+			if conf.config_item_set('enc_domain_keymap', domain):
+				log("Encrypt domain keymap has key '%s'" % conf.get_item('enc_dec_keymap', domain) )
 				# Check we've got a matching key!
-				if cfg['enc_domain_keymap'][domain] in keys:
+				if conf.get_item('enc_domain_keymap', domain) in keys:
 					log("Using default domain key for recipient '%s'" % to)
-					gpg_to.append( (to, cfg['enc_domain_keymap'][domain]) )
+					gpg_to.append( (to, conf.get_item('enc_domain_keymap', domain)) )
 					continue
 				else:
-					log("Key '%s' in encrypt domain keymap not found in keyring for email address '%s'." % (cfg['enc_domain_keymap'][domain], to))
+					log("Key '%s' in encrypt domain keymap not found in keyring for email address '%s'." % (conf.get_item('enc_domain_keymap', domain), to))
 		
 		# At this point no key has been found
 		if verbose:
@@ -131,19 +121,19 @@ def gpg_encrypt( raw_message, recipients ):
 
 		for rcpt in gpg_to:
 			# Checking pre defined styles in settings first
-			if get_bool_from_cfg('pgp_style', rcpt[0], 'mime'):
+			if conf.config_item_equals('pgp_style', rcpt[0], 'mime'):
 				gpg_to_smtp_mime.append(rcpt[0])
 				gpg_to_cmdline_mime.extend(rcpt[1].split(','))
-			elif get_bool_from_cfg('pgp_style', rcpt[0], 'inline'):
+			elif conf.config_item_equals('pgp_style', rcpt[0], 'inline'):
 				gpg_to_smtp_inline.append(rcpt[0])
 				gpg_to_cmdline_inline.extend(rcpt[1].split(','))
 			else:
 				# Log message only if an unknown style is defined
-				if get_bool_from_cfg('pgp_style', rcpt[0]):
-					log("Style %s for recipient %s is not known. Use default as fallback." % (cfg['pgp_style'][rcpt[0]], rcpt[0]))
+				if conf.config_item_set('pgp_style', rcpt[0]):
+					log("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
 
 				# If no style is in settings defined for recipient, use default from settings
-				if get_bool_from_cfg('default', 'mime_conversion', 'yes'):
+				if conf.config_item_equals('default', 'mime_conversion', 'yes'):
 					gpg_to_smtp_mime.append(rcpt[0])
 					gpg_to_cmdline_mime.extend(rcpt[1].split(','))
 				else:
@@ -154,7 +144,7 @@ def gpg_encrypt( raw_message, recipients ):
 			# Encrypt mail with PGP/MIME
 			raw_message_mime = copy.deepcopy(raw_message)
 
-			if get_bool_from_cfg('default', 'add_header', 'yes'):
+			if conf.config_item_equals('default', 'add_header', 'yes'):
 				raw_message_mime['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
 
 			if 'Content-Transfer-Encoding' in raw_message_mime:
@@ -171,7 +161,7 @@ def gpg_encrypt( raw_message, recipients ):
 			# Encrypt mail with PGP/INLINE
 			raw_message_inline = copy.deepcopy(raw_message)
 
-			if get_bool_from_cfg('default', 'add_header', 'yes'):
+			if conf.config_item_equals('default', 'add_header', 'yes'):
 				raw_message_inline['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
 
 			if 'Content-Transfer-Encoding' in raw_message_inline:
@@ -254,8 +244,8 @@ def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
 			log("Message is already pgp encrypted. No nested encryption needed.")
 		return payload
 
-	# No check is needed for cfg['gpg']['keyhome'] as this is already done in method gpg_encrypt
-	gpg = GnuPG.GPGEncryptor( cfg['gpg']['keyhome'], gpg_to_cmdline, payload.get_content_charset() )
+	# No check is needed for conf.get_item('gpg', 'keyhome') as this is already done in method gpg_encrypt
+	gpg = GnuPG.GPGEncryptor( conf.get_item('gpg', 'keyhome'), gpg_to_cmdline, payload.get_content_charset() )
 	gpg.update( raw_payload )
 	encrypted_data, returncode = gpg.encrypt()
 	if verbose:
@@ -282,11 +272,11 @@ def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
 
 def smime_encrypt( raw_message, recipients ):
 	
-	if not get_bool_from_cfg('smime', 'cert_path'):
+	if not conf.config_item_set('smime', 'cert_path'):
 		log("No valid path for S/MIME certs found in config file. S/MIME encryption aborted.")
 		return recipients
 
-	cert_path = cfg['smime']['cert_path']+"/"
+	cert_path = conf.get_item('smime', 'cert_path')+"/"
 	s = SMIME.SMIME()
 	sk = X509.X509_Stack()
 	smime_to = list()
@@ -320,7 +310,7 @@ def smime_encrypt( raw_message, recipients ):
 		if raw_message['Subject']:
 			out.write('Subject: '+ raw_message['Subject'] + '\n')
 
-		if get_bool_from_cfg('default', 'add_header', 'yes'):
+		if conf.config_item_equals('default', 'add_header', 'yes'):
 			out.write('X-GPG-Mailgate: Encrypted by GPG Mailgate\n')
 
 		s.write(out, p7)
@@ -343,7 +333,7 @@ def get_cert_for_email( to_addr, cert_path ):
 		if not os.path.isfile(file_path):
 			continue
 
-		if get_bool_from_cfg('default', 'mail_case_insensitive', 'yes'):
+		if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
 			if filename.lower() == to_addr:
 				return (file_path, to_addr)
 		else:
@@ -359,20 +349,9 @@ def get_cert_for_email( to_addr, cert_path ):
 
 	return None
 
-def get_bool_from_cfg( section, key = None, evaluation = None ):
-
-	if not (key is None) and not (evaluation is None):
-		return section in cfg and cfg[section].get(key) == evaluation
-
-	elif not (key is None) and (evaluation is None):
-		return section in cfg and not (cfg[section].get(key) is None)
-
-	else:
-		return section in cfg
-
 def sanitize_case_sense( address ):
 
-	if get_bool_from_cfg('default', 'mail_case_insensitive', 'yes'):
+	if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
 		address = address.lower()
 	else:
 		if isinstance(address, str):
@@ -409,13 +388,13 @@ def send_msg( message, recipients ):
 
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
-		if not (get_bool_from_cfg('relay', 'host') and get_bool_from_cfg('relay', 'port')):
+		if not (conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'port')):
 			log("Missing settings for relay. Sending email aborted.")
 			return None
 		log("Sending email to: <%s>" % '> <'.join( recipients ))
-		relay = (cfg['relay']['host'], int(cfg['relay']['port']))
+		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
-		if 'relay' in cfg and 'starttls' in cfg['relay'] and cfg['relay']['starttls'] == 'yes':
+		if conf.config_item_equals('relay', 'starttls', 'yes'):
 			smtp.starttls()
 		smtp.sendmail( from_addr, recipients, message )
 	else:
@@ -461,6 +440,9 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 	# Send out mail to recipients which are left
 	send_msg(raw_message.as_string(), recipients_left)
 
+
+conf.load_config()
+lacre.init_logging(conf.get_item('logging', 'file'))
 
 # Let's start
 sort_recipients(raw_message, from_addr, to_addrs)
