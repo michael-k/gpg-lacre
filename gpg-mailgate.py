@@ -52,14 +52,6 @@ def log( msg ):
 			logfile.write(msg + "\n")
 			logfile.close()
 
-verbose = conf.verbose_logging_enabled()
-
-# Read e-mail from stdin
-raw = sys.stdin.read()
-raw_message = email.message_from_string( raw )
-from_addr = raw_message['From']
-to_addrs = sys.argv[1:]
-
 def gpg_encrypt( raw_message, recipients ):
 
 	if not conf.config_item_set('gpg', 'keyhome'):
@@ -442,7 +434,15 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 
 
 conf.load_config()
+verbose = conf.verbose_logging_enabled()
+
 lacre.init_logging(conf.get_item('logging', 'file'))
+
+# Read e-mail from stdin
+raw = sys.stdin.read()
+raw_message = email.message_from_string( raw )
+from_addr = raw_message['From']
+to_addrs = sys.argv[1:]
 
 # Let's start
 sort_recipients(raw_message, from_addr, to_addrs)
