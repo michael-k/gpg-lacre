@@ -101,7 +101,7 @@ def gpg_encrypt( raw_message, recipients ):
 			log("Recipient (%s) not in PGP domain list for encrypting." % to)
 		ungpg_to.append(to)
 
-	if gpg_to != list():
+	if gpg_to:
 		log("Encrypting email to: %s" % ' '.join( x[0] for x in gpg_to ))
 
 		# Getting PGP style for recipient
@@ -132,7 +132,7 @@ def gpg_encrypt( raw_message, recipients ):
 					gpg_to_smtp_inline.append(rcpt[0])
 					gpg_to_cmdline_inline.extend(rcpt[1].split(','))
 
-		if gpg_to_smtp_mime != list():
+		if gpg_to_smtp_mime:
 			# Encrypt mail with PGP/MIME
 			raw_message_mime = copy.deepcopy(raw_message)
 
@@ -149,7 +149,7 @@ def gpg_encrypt( raw_message, recipients ):
 
 			send_msg( raw_message_mime.as_string(), gpg_to_smtp_mime )
 
-		if gpg_to_smtp_inline != list():
+		if gpg_to_smtp_inline:
 			# Encrypt mail with PGP/INLINE
 			raw_message_inline = copy.deepcopy(raw_message)
 
@@ -287,7 +287,7 @@ def smime_encrypt( raw_message, recipients ):
 		else:
 			unsmime_to.append(addr)
 
-	if smime_to != list():
+	if smime_to:
 		s.set_x509_stack(sk)
 		s.set_cipher(SMIME.Cipher('aes_192_cbc'))
 		p7 = s.encrypt( BIO.MemoryBuffer( raw_message.as_string() ) )
@@ -311,7 +311,7 @@ def smime_encrypt( raw_message, recipients ):
 			log("Sending message from " + from_addr + " to " + str(smime_to))
 
 		send_msg(out.read(), smime_to)
-	if unsmime_to != list():
+	if unsmime_to:
 		if verbose:
 			log("Unable to find valid S/MIME certificates for " + str(unsmime_to))
 
@@ -421,12 +421,12 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 
 	# Encrypt mails for recipients with known public PGP keys
 	recipients_left = gpg_encrypt(raw_message, recipients_left)
-	if recipients_left == list():
+	if not recipients_left:
 		return
 
 	# Encrypt mails for recipients with known S/MIME certificate
 	recipients_left = smime_encrypt(raw_message, recipients_left)
-	if recipients_left == list():
+	if not recipients_left:
 		return
 
 	# Send out mail to recipients which are left
