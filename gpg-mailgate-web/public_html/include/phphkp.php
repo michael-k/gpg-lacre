@@ -28,7 +28,7 @@ $PGP_HOME="/var/gpg/.phkp";
 $MAX_KEYSIZE=102400;
 
 
-if (ereg("/pks\/add",$_SERVER['REQUEST_URI']))
+if (preg_match("/pks\/add/",$_SERVER['REQUEST_URI']))
 {
   if ($MAX_KEYSIZE == -1 || strlen($_POST['keytext']) <= $MAX_KEYSIZE)
   {
