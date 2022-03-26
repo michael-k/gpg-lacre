@@ -7,7 +7,6 @@ from configparser import RawConfigParser
 
 import os
 
-import logging
 
 # Environment variable name we read to retrieve configuration path.  This is to
 # enable non-root users to set up and run GPG Mailgate and to make the software
@@ -29,7 +28,6 @@ def load_config() -> dict:
 	"""
 	configFile = os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf')
 
-	logging.debug(f"Loading configuration file: {configFile}")
 	parser = read_config(configFile)
 
 	global cfg
@@ -52,9 +50,12 @@ def copy_to_dict(confParser) -> dict:
 
 	return config
 
-def get_item(section, key):
+def get_item(section, key, empty_value = None):
 	global cfg
-	return cfg[section][key]
+	if config_item_set(section, key):
+		return cfg[section][key]
+	else:
+		return empty_value
 
 def has_section(section) -> bool:
 	global cfg
@@ -67,7 +68,3 @@ def config_item_set(section, key) -> bool:
 def config_item_equals(section, key, value) -> bool:
 	global cfg
 	return section in cfg and key in cfg[section] and cfg[section][key] == value
-
-def verbose_logging_enabled() -> bool:
-	global cfg
-	return config_item_equals("logging", "verbose", "yes")

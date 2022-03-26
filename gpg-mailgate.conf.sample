@@ -66,9 +66,9 @@ notification_email = gpg-mailgate@yourdomain.tld
 mail_templates = /var/gpgmailgate/cron_templates
 
 [logging]
-# For logging to syslog. 'file = syslog', otherwise use path to the file.
-file = syslog
-verbose = yes
+# path to the logging configuration; see documentation for details:
+# https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
+config = /etc/gpg-lacre-logging.ini
 
 [relay]
 # the relay settings to use for Postfix

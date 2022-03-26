@@ -33,11 +33,10 @@ RELAY_SCRIPT = "test/relay.py"
 CONFIG_FILE = "test/gpg-mailgate.conf"
 
 def build_config(config):
-    cp = configparser.ConfigParser()
+    cp = configparser.RawConfigParser()
 
     cp.add_section("logging")
-    cp.set("logging", "file", config["log_file"])
-    cp.set("logging", "verbose", "yes")
+    cp.set("logging", "config", config["log_config"])
 
     cp.add_section("gpg")
     cp.set("gpg", "keyhome", config["gpg_keyhome"])
@@ -147,7 +146,7 @@ write_test_config(config_path,
                   port				= config.get("relay", "port"),
                   gpg_keyhome		= config.get("dirs", "keys"),
                   smime_certpath	= config.get("dirs", "certs"),
-                  log_file			= config.get("tests", "lacre_log"))
+                  log_config		= config.get("tests", "log_config"))
 
 for case_no in range(1, config.getint("tests", "cases")+1):
     case_name = f"case-{case_no}"

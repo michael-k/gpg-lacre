@@ -2,15 +2,35 @@
 """
 
 import logging
+import logging.config
 
-# Initialise logging infrastructure.
-#
-# This is going to be removed at some point of time, but is used at the moment
-# because it's easy and keeps the rest of the code quite clean.
+# Following structure configures logging iff a file-based configuration cannot
+# be performed.  It only sets up a syslog handler, so that the admin has at
+# least some basic information.
+FAIL_OVER_LOGGING_CONFIG = {
+	'version': 1,
+	'formatters': {
+		'sysfmt': {
+			'format': '%(asctime)s %(module)s %(message)s',
+			'datefmt': '%Y-%m-%d %H:%M:%S'
+		},
+	},
+	'handlers': {
+		'syslog': {
+			'class': 'logging.handlers.SysLogHandler',
+			'level': 'INFO',
+			'formatter': 'sysfmt'
+		}
+	},
+	'root': {
+		'level': 'INFO',
+		'handlers': ['syslog']
+	}
+}
 
-def init_logging(log_filename):
-	logging.basicConfig(filename = log_filename,
-						format = '%(asctime)s %(pathname)s:%(lineno)d %(levelname)s [%(funcName)s] %(message)s',
-						datefmt = '%Y-%m-%d %H:%M:%S',
-						level = logging.DEBUG)
-	logging.info("Starting logs from lacre module...")
+def init_logging(config_filename):
+	if config_filename is not None:
+		logging.config.fileConfig(config_filename)
+	else:
+		logging.config.dictConfig(FAIL_OVER_LOGGING_CONFIG)
+		logging.warning('Lacre logging configuration missing, using syslog as default')

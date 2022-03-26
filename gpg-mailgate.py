@@ -43,19 +43,11 @@ import logging
 import lacre
 import lacre.config as conf
 
-def log( msg ):
-	if conf.config_item_set("logging", "file"):
-		if conf.config_item_equals('logging', 'file', "syslog"):
-			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
-		else:
-			logfile = open(conf.get_item('logging', 'file'), 'a')
-			logfile.write(msg + "\n")
-			logfile.close()
-
 def gpg_encrypt( raw_message, recipients ):
+	global LOG
 
 	if not conf.config_item_set('gpg', 'keyhome'):
-		log("No valid entry for gpg keyhome. Encryption aborted.")
+		LOG.info("No valid entry for gpg keyhome. Encryption aborted.")
 		return recipients
 
 	keys = GnuPG.public_keys( conf.get_item('gpg', 'keyhome') )
@@ -69,13 +61,13 @@ def gpg_encrypt( raw_message, recipients ):
 
 		# Check if recipient is in keymap
 		if conf.config_item_set('enc_keymap', to):
-			log("Encrypt keymap has key '%s'" % conf.get_item('enc_keymap', to) )
+			LOG.info("Encrypt keymap has key '%s'" % conf.get_item('enc_keymap', to) )
 			# Check we've got a matching key!
 			if conf.get_item('enc_keymap', to) in keys:
 				gpg_to.append( (to, conf.get_item('enc_keymap', to)) )
 				continue
 			else:
-				log("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (conf.get_item('enc_keymap', to), to))
+				LOG.info("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (conf.get_item('enc_keymap', to), to))
 
 		# Check if key in keychain is present
 		if to in keys.values() and not conf.config_item_equals('default', 'enc_keymap_only', 'yes'):
@@ -87,22 +79,21 @@ def gpg_encrypt( raw_message, recipients ):
 		if len(splitted_to) > 1:
 			domain = splitted_to[1]
 			if conf.config_item_set('enc_domain_keymap', domain):
-				log("Encrypt domain keymap has key '%s'" % conf.get_item('enc_dec_keymap', domain) )
+				LOG.info("Encrypt domain keymap has key '%s'" % conf.get_item('enc_dec_keymap', domain) )
 				# Check we've got a matching key!
 				if conf.get_item('enc_domain_keymap', domain) in keys:
-					log("Using default domain key for recipient '%s'" % to)
+					LOG.info("Using default domain key for recipient '%s'" % to)
 					gpg_to.append( (to, conf.get_item('enc_domain_keymap', domain)) )
 					continue
 				else:
-					log("Key '%s' in encrypt domain keymap not found in keyring for email address '%s'." % (conf.get_item('enc_domain_keymap', domain), to))
+					LOG.info("Key '%s' in encrypt domain keymap not found in keyring for email address '%s'." % (conf.get_item('enc_domain_keymap', domain), to))
 		
 		# At this point no key has been found
-		if verbose:
-			log("Recipient (%s) not in PGP domain list for encrypting." % to)
+		LOG.debug("Recipient (%s) not in PGP domain list for encrypting." % to)
 		ungpg_to.append(to)
 
 	if gpg_to:
-		log("Encrypting email to: %s" % ' '.join( x[0] for x in gpg_to ))
+		LOG.info("Encrypting email to: %s" % ' '.join( x[0] for x in gpg_to ))
 
 		# Getting PGP style for recipient
 		gpg_to_smtp_mime = list()
@@ -122,7 +113,7 @@ def gpg_encrypt( raw_message, recipients ):
 			else:
 				# Log message only if an unknown style is defined
 				if conf.config_item_set('pgp_style', rcpt[0]):
-					log("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
+					LOG.info("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
 
 				# If no style is in settings defined for recipient, use default from settings
 				if conf.config_item_equals('default', 'mime_conversion', 'yes'):
@@ -229,21 +220,20 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 	return [ submsg1, encrypt_payload(submsg2, gpg_to_cmdline, check_nested) ]
 
 def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
+	global LOG
 
 	raw_payload = payload.get_payload(decode=True)
 	if check_nested and b"-----BEGIN PGP MESSAGE-----" in raw_payload and b"-----END PGP MESSAGE-----" in raw_payload:
-		if verbose:
-			log("Message is already pgp encrypted. No nested encryption needed.")
+		LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
 		return payload
 
 	# No check is needed for conf.get_item('gpg', 'keyhome') as this is already done in method gpg_encrypt
 	gpg = GnuPG.GPGEncryptor( conf.get_item('gpg', 'keyhome'), gpg_to_cmdline, payload.get_content_charset() )
 	gpg.update( raw_payload )
 	encrypted_data, returncode = gpg.encrypt()
-	if verbose:
-		log("Return code from encryption=%d (0 indicates success)." % returncode)
+	LOG.debug("Return code from encryption=%d (0 indicates success)." % returncode)
 	if returncode != 0:
-		log("Encrytion failed with return code %d. Encryption aborted." % returncode)
+		LOG.info("Encrytion failed with return code %d. Encryption aborted." % returncode)
 		return payload
 
 	payload.set_payload( encrypted_data )
@@ -263,9 +253,10 @@ def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
 	return payload
 
 def smime_encrypt( raw_message, recipients ):
+	global LOG
 	
 	if not conf.config_item_set('smime', 'cert_path'):
-		log("No valid path for S/MIME certs found in config file. S/MIME encryption aborted.")
+		LOG.info("No valid path for S/MIME certs found in config file. S/MIME encryption aborted.")
 		return recipients
 
 	cert_path = conf.get_item('smime', 'cert_path')+"/"
@@ -279,8 +270,7 @@ def smime_encrypt( raw_message, recipients ):
 
 		if not (cert_and_email is None):
 			(to_cert, normal_email) = cert_and_email
-			if verbose:
-				log("Found cert " + to_cert + " for " + addr + ": " + normal_email)
+			LOG.debug("Found cert " + to_cert + " for " + addr + ": " + normal_email)
 			smime_to.append(addr)
 			x509 = X509.load_cert(to_cert, format=X509.FORMAT_PEM)
 			sk.push(x509)
@@ -307,17 +297,16 @@ def smime_encrypt( raw_message, recipients ):
 
 		s.write(out, p7)
 
-		if verbose:
-			log("Sending message from " + from_addr + " to " + str(smime_to))
+		LOG.debug("Sending message from " + from_addr + " to " + str(smime_to))
 
 		send_msg(out.read(), smime_to)
 	if unsmime_to:
-		if verbose:
-			log("Unable to find valid S/MIME certificates for " + str(unsmime_to))
+		LOG.debug("Unable to find valid S/MIME certificates for " + str(unsmime_to))
 
 	return unsmime_to
 
 def get_cert_for_email( to_addr, cert_path ):
+	global LOG
 
 	files_in_directory = os.listdir(cert_path)
 	for filename in files_in_directory:
@@ -335,8 +324,7 @@ def get_cert_for_email( to_addr, cert_path ):
 	multi_email = re.match('^([^\+]+)\+([^@]+)@(.*)$', to_addr)
 	if multi_email:
 		fixed_up_email = "%s@%s" % (multi_email.group(1), multi_email.group(3))
-		if verbose:
-			log("Multi-email %s converted to %s" % (to_addr, fixed_up_email))
+		LOG.debug("Multi-email %s converted to %s" % (to_addr, fixed_up_email))
 		return get_cert_for_email(fixed_up_email)
 
 	return None
@@ -377,22 +365,24 @@ def get_first_payload( payloads ):
 		return payloads
 
 def send_msg( message, recipients ):
+	global LOG
 
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
 		if not (conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'port')):
-			log("Missing settings for relay. Sending email aborted.")
+			LOG.info("Missing settings for relay. Sending email aborted.")
 			return None
-		log("Sending email to: <%s>" % '> <'.join( recipients ))
+		LOG.info("Sending email to: <%s>" % '> <'.join( recipients ))
 		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
 		if conf.config_item_equals('relay', 'starttls', 'yes'):
 			smtp.starttls()
 		smtp.sendmail( from_addr, recipients, message )
 	else:
-		log("No recipient found")
+		LOG.info("No recipient found")
 
 def sort_recipients( raw_message, from_addr, to_addrs ):
+	global LOG
 
 	recipients_left = list()
 	for recipient in to_addrs:
@@ -401,21 +391,18 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 	# There is no need for nested encryption
 	first_payload = get_first_payload(raw_message)
 	if first_payload.get_content_type() == 'application/pkcs7-mime':
-		if verbose:
-			log("Message is already encrypted with S/MIME. Encryption aborted.")
+		LOG.debug("Message is already encrypted with S/MIME. Encryption aborted.")
 		send_msg(raw_message.as_string(), recipients_left)
 		return
 
 	first_payload = first_payload.get_payload(decode=True)
 	if b"-----BEGIN PGP MESSAGE-----" in first_payload and b"-----END PGP MESSAGE-----" in first_payload:
-		if verbose:
-			log("Message is already encrypted as PGP/INLINE. Encryption aborted.")
+		LOG.debug("Message is already encrypted as PGP/INLINE. Encryption aborted.")
 		send_msg(raw_message.as_string(), recipients_left)
 		return
 
 	if raw_message.get_content_type() == 'multipart/encrypted':
-		if verbose:
-			log("Message is already encrypted. Encryption aborted.")
+		LOG.debug("Message is already encrypted. Encryption aborted.")
 		send_msg(raw_message.as_string(), recipients_left)
 		return
 
@@ -434,9 +421,10 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 
 
 conf.load_config()
-verbose = conf.verbose_logging_enabled()
+lacre.init_logging(conf.get_item('logging', 'config'))
 
-lacre.init_logging(conf.get_item('logging', 'file'))
+
+LOG = logging.getLogger(__name__)
 
 # Read e-mail from stdin
 raw = sys.stdin.read()
