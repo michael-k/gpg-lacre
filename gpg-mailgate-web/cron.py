@@ -25,7 +25,7 @@ import MySQLdb
 import smtplib
 import markdown
 import syslog
-from email.MIMEText import MIMEText
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 def appendLog(msg):
