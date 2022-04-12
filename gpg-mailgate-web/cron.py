@@ -30,20 +30,9 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Environment variable name we read to retrieve configuration path.  This is to
-# enable non-root users to set up and run GPG Mailgate and to make the software
-# testable.
-CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
-
-def appendLog(msg):
-	print(msg)
-	if 'logging' in cfg and 'file' in cfg['logging']:
-		if cfg['logging'].get('file') == "syslog":
-			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
-		else:
-			logfile = open(cfg['logging']['file'], 'a')
-			logfile.write(msg + "\n")
-			logfile.close()
+import logging
+import lacre
+import lacre.config as conf
 
 def load_file(name):
     f = open(name)
@@ -61,23 +50,23 @@ def authenticate_maybe(smtp):
 		smtp.login(cfg['smtp']['username'], cfg['smtp']['password'])
 
 def send_msg( mailsubject, messagefile, recipients = None ):
-	mailbody = load_file( cfg['cron']['mail_templates'] + "/" + messagefile)
+	mailbody = load_file( conf.get_item('cron', 'mail_templates') + "/" + messagefile).read()
 	msg = MIMEMultipart("alternative")
 
-	msg["From"] = cfg['cron']['notification_email']
+	msg["From"] = conf.get_item('cron', 'notification_email')
 	msg["To"] = recipients
 	msg["Subject"] = mailsubject
 
 	msg.attach(MIMEText(mailbody, 'plain'))
 	msg.attach(MIMEText(markdown.markdown(mailbody), 'html'))
-
-	if 'relay' in cfg and 'host' in cfg['relay'] and 'enc_port' in cfg['relay']:
-		relay = (cfg['relay']['host'], int(cfg['relay']['enc_port']))
+	
+	if conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'enc_port'):
+		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'enc_port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
 		authenticate_maybe(smtp)
-		smtp.sendmail( cfg['cron']['notification_email'], recipients, msg.as_string() )
+		smtp.sendmail( conf.get_item('cron', 'notification_email'), recipients, msg.as_string() )
 	else:
-		appendLog("Could not send mail due to wrong configuration")
+		LOG.info("Could not send mail due to wrong configuration")
 
 def setup_db_connection(url):
 	engine = sqlalchemy.create_engine(url)
@@ -98,15 +87,13 @@ def define_db_schema():
 
 
 # Read configuration from /etc/gpg-mailgate.conf
-_cfg = RawConfigParser()
-_cfg.read(os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf'))
-cfg = dict()
-for sect in _cfg.sections():
-	cfg[sect] = dict()
-	for (name, value) in _cfg.items(sect):
-		cfg[sect][name] = value
+conf.load_config()
 
-if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabled'] == 'yes' and 'url' in cfg['database']:
+lacre.init_logging(conf.get_item('logging', 'config'))
+LOG = logging.getLogger(__name__)
+
+
+if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
 	(engine, conn) = setup_db_connection(cfg["database"]["url"])
 	(gpgmw_keys) = define_db_schema()
 
@@ -119,28 +106,28 @@ if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabl
 		# delete any other public keys associated with this confirmed email address
 		delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
 		conn.execute(delq)
-		GnuPG.delete_key(cfg['gpg']['keyhome'], row[2])
-		appendLog('Deleted key for <' + row[2] + '> via import request')
+		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[2])
+	    LOG.info('Deleted key for <' + row[2] + '> via import request')
 
 		if row[0].strip(): # we have this so that user can submit blank key to remove any encryption
 			if GnuPG.confirm_key(row[0], row[2]):
-				GnuPG.add_key(cfg['gpg']['keyhome'], row[0]) # import the key to gpg
+				GnuPG.add_key(conf.get_item('gpg', 'keyhome'), row[0]) # import the key to gpg
 				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
 				conn.execute(modq) # mark key as accepted
-				appendLog('Imported key from <' + row[2] + '>')
-				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
+			    LOG.info('Imported key from <' + row[2] + '>')
+				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
 				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 				conn.execute(delq) # delete key
-				appendLog('Import confirmation failed for <' + row[2] + '>')
-				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
+			    LOG.info('Import confirmation failed for <' + row[2] + '>')
+				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration failed", "registrationError.md", row[2] )
 		else:
 			# delete key so we don't continue processing it
 			delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 			conn.execute(delq)
-			if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
+			if conf.config_item_equals('cron', 'send_email', 'yes'):
 				send_msg( "PGP key deleted", "keyDeleted.md", row[2])
 
 	# delete keys
@@ -148,9 +135,9 @@ if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabl
 	stat2_result_set = conn.execute(stat2q)
 
 	for row in stat2_result_set:
-		GnuPG.delete_key(cfg['gpg']['keyhome'], row[0])
+		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[0])
 		delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 		conn.execute(delq)
-		appendLog('Deleted key for <' + row[0] + '>')
+	    LOG.info('Deleted key for <' + row[0] + '>')
 else:
 	print("Warning: doing nothing since database settings are not configured!")
