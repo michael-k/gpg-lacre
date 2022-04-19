@@ -74,7 +74,7 @@ def public_keys( keyhome ):
 # confirms a key has a given email address
 def confirm_key( content, email ):
 	tmpkeyhome = ''
-	if type(content) == 'str':
+	if isinstance(content, str):
 		content = bytes(content, sys.getdefaultencoding())
 
 	while True:
@@ -104,7 +104,7 @@ def confirm_key( content, email ):
 
 # adds a key and ensures it has the given email address
 def add_key( keyhome, content ):
-	if type(content) == 'str':
+	if isinstance(content, str):
 		content = bytes(content, sys.getdefaultencoding())
 	p = subprocess.Popen( build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
 	p.communicate(input=content)
