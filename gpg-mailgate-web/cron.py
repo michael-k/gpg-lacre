@@ -37,8 +37,14 @@ def appendLog(msg):
 			logfile.write(msg + "\n")
 			logfile.close()
 
+def load_file(name):
+    f = open(name)
+    data = f.read()
+    f.close()
+    return data
+
 def send_msg( mailsubject, messagefile, recipients = None ):
-	mailbody = file( cfg['cron']['mail_templates'] + "/" + messagefile).read()
+	mailbody = load_file( cfg['cron']['mail_templates'] + "/" + messagefile)
 	msg = MIMEMultipart("alternative")
 
 	msg["From"] = cfg['cron']['notification_email']
