@@ -74,6 +74,8 @@ def public_keys( keyhome ):
 # confirms a key has a given email address
 def confirm_key( content, email ):
 	tmpkeyhome = ''
+	if type(content) == 'str':
+		content = bytes(content, sys.getdefaultencoding())
 
 	while True:
 		tmpkeyhome = '/tmp/' + ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(12))
