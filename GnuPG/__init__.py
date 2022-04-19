@@ -89,9 +89,9 @@ def confirm_key( content, email ):
 	result = p.communicate(input=content)[1]
 	confirmed = False
 
-	for line in result.split("\n"):
-		if 'imported' in line and '<' in line and '>' in line:
-			if line.split('<')[1].split('>')[0].lower() == email.lower():
+	for line in result.split(b"\n"):
+		if b'imported' in line and b'<' in line and b'>' in line:
+			if line.split(b'<')[1].split(b'>')[0].lower() == email.lower():
 				confirmed = True
 				break
 			else:
