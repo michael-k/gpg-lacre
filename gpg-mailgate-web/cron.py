@@ -57,6 +57,13 @@ def send_msg( mailsubject, messagefile, recipients = None ):
 	if 'relay' in cfg and 'host' in cfg['relay'] and 'enc_port' in cfg['relay']:
 		relay = (cfg['relay']['host'], int(cfg['relay']['enc_port']))
 		smtp = smtplib.SMTP(relay[0], relay[1])
+        if  'smtp' in cfg and 'enabled' in cfg['smtp'] and cfg['smtp']['enabled'] == 'true':
+            smtp.connect(cfg['smtp']['host'],cfg['smtp']['port'])
+            smtp.ehlo()
+            if cfg['smtp']['startls'] == 'true':
+                smtp.starttls()
+            smtp.ehlo()
+            smtp.login(cfg['smtp']['username'], cfg['smtp']['password'])
 		smtp.sendmail( cfg['cron']['notification_email'], recipients, msg.as_string() )
 	else:
 		appendLog("Could not send mail due to wrong configuration")

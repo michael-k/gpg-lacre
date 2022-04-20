@@ -83,6 +83,15 @@ enc_port = 25
 # Set this option to yes to use TLS for SMTP Servers which require TLS.
 starttls = no
 
+[smtp]
+# Options when smtp auth is required to send out emails 
+enabled = false
+username = gpg-mailgate
+password = changeme
+host = yourdomain.tld 
+port = 587
+starttls = true
+
 [database]
 # uncomment the settings below if you want
 #  to read keys from a gpg-mailgate-web database
