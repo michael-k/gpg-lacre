@@ -95,11 +95,15 @@ starttls = true
 [database]
 # uncomment the settings below if you want
 #  to read keys from a gpg-mailgate-web database
+# TODO: see if this section is required by PHP. If not, delete it.
 enabled = yes
 name = gpgmw
 host = localhost
 username = gpgmw
 password = password
+# For other RDBMS backends, see:
+# https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls
+url = sqlite:///test.db
 
 [enc_keymap]
 # You can find these by running the following command:
