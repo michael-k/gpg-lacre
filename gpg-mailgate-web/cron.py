@@ -22,8 +22,7 @@
 from configparser import RawConfigParser
 import GnuPG
 import sqlalchemy
-from sqlalchemy.sql import select
-# import MySQLdb
+from sqlalchemy.sql import select, delete, update, and_
 import smtplib
 import markdown
 import syslog
@@ -37,6 +36,7 @@ from email.mime.multipart import MIMEMultipart
 CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
 
 def appendLog(msg):
+	print(msg)
 	if 'logging' in cfg and 'file' in cfg['logging']:
 		if cfg['logging'].get('file') == "syslog":
 			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
@@ -110,53 +110,47 @@ if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabl
 	(engine, conn) = setup_db_connection(cfg["database"]["url"])
 	(gpgmw_keys) = define_db_schema()
 
-	# Original query: "SELECT publickey, id, email FROM gpgmw_keys WHERE status = 0 AND confirm = '' LIMIT 100"
-	# TODO: add WHERE clause referencing "status" and "confirm" columns.
-	query = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email).limit(100)
-	result_set = conn.execute(query)
+	selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
+	  .where(and_(gpgmw_keys.c.status == 0, gpgmw_keys.c.confirm == ""))\
+	  .limit(100)
+	result_set = conn.execute(selq)
 
-	rowno = 0
 	for row in result_set:
 		# delete any other public keys associated with this confirmed email address
-		# TODO: replace with a delete() query generator.
-		conn.execute("DELETE FROM gpgmw_keys WHERE email = %s AND id != %s", (row[2], row[1],))
+		delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
+		conn.execute(delq)
 		GnuPG.delete_key(cfg['gpg']['keyhome'], row[2])
 		appendLog('Deleted key for <' + row[2] + '> via import request')
 
 		if row[0].strip(): # we have this so that user can submit blank key to remove any encryption
 			if GnuPG.confirm_key(row[0], row[2]):
 				GnuPG.add_key(cfg['gpg']['keyhome'], row[0]) # import the key to gpg
-				# TODO: replace with an update() query generator.
-				conn.execute("UPDATE gpgmw_keys SET status = 1 WHERE id = %s", (row[1],)) # mark key as accepted
+				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
+				conn.execute(modq) # mark key as accepted
 				appendLog('Imported key from <' + row[2] + '>')
 				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
-				# TODO: replace with a delete() query generator.
-				conn.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],)) # delete key
+				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+				conn.execute(delq) # delete key
 				appendLog('Import confirmation failed for <' + row[2] + '>')
 				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 					send_msg( "PGP key registration failed", "registrationError.md", row[2] )
 		else:
 			# delete key so we don't continue processing it
-			# TODO: replace with a delete() query generator.
-			conn.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],))
+			delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+			conn.execute(delq)
 			if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 				send_msg( "PGP key deleted", "keyDeleted.md", row[2])
 
-		# connection.commit()
-		# TODO: see if it's still necessary
-
 	# delete keys
-	# TODO: replace with a delete() query generator.
-	result_set = conn.execute("SELECT email, id FROM gpgmw_keys WHERE status = 2 LIMIT 100")
+	stat2q = select(gpgmw_keys.c.email, gpgmw_keys.c.id).where(gpgmw_keys.c.status == 2).limit(100)
+	stat2_result_set = conn.execute(stat2q)
 
-	for row in result_set:
+	for row in stat2_result_set:
 		GnuPG.delete_key(cfg['gpg']['keyhome'], row[0])
-		# TODO: replace with a delete() query generator.
-		conn.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],))
+		delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+		conn.execute(delq)
 		appendLog('Deleted key for <' + row[0] + '>')
-		# connection.commit()
-		# TODO: see if it's still necessary
 else:
 	print("Warning: doing nothing since database settings are not configured!")
