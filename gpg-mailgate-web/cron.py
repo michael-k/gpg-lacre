@@ -55,7 +55,7 @@ def authenticate_maybe(smtp):
 	if  'smtp' in cfg and 'enabled' in cfg['smtp'] and cfg['smtp']['enabled'] == 'true':
 		smtp.connect(cfg['smtp']['host'],cfg['smtp']['port'])
 		smtp.ehlo()
-		if cfg['smtp']['startls'] == 'true':
+		if 'starttls' in cfg['smtp'] and cfg['smtp']['starttls'] == 'true':
 			smtp.starttls()
 		smtp.ehlo()
 		smtp.login(cfg['smtp']['username'], cfg['smtp']['password'])
@@ -67,10 +67,10 @@ def send_msg( mailsubject, messagefile, recipients = None ):
 	msg["From"] = cfg['cron']['notification_email']
 	msg["To"] = recipients
 	msg["Subject"] = mailsubject
-	
+
 	msg.attach(MIMEText(mailbody, 'plain'))
 	msg.attach(MIMEText(markdown.markdown(mailbody), 'html'))
-	
+
 	if 'relay' in cfg and 'host' in cfg['relay'] and 'enc_port' in cfg['relay']:
 		relay = (cfg['relay']['host'], int(cfg['relay']['enc_port']))
 		smtp = smtplib.SMTP(relay[0], relay[1])
