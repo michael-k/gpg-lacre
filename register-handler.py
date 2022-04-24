@@ -7,37 +7,28 @@ from M2Crypto import BIO, Rand, SMIME, X509
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Read configuration from /etc/gpg-mailgate.conf
-_cfg = RawConfigParser()
-_cfg.read('/etc/gpg-mailgate.conf')
-cfg = dict()
-for sect in _cfg.sections():
-	cfg[sect] = dict()
-	for (name, value) in _cfg.items(sect):
-		cfg[sect][name] = value
+import logging
 
-def log(msg):
-	if 'logging' in cfg and 'file' in cfg['logging']:
-		if cfg['logging']['file'] == "syslog":
-			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
-		else:
-			logfile = open(cfg['logging']['file'], 'a')
-			logfile.write(msg + "\n")
-			logfile.close()
-
-CERT_PATH = cfg['smime']['cert_path']+"/"
+import lacre
+import lacre.config as conf
 
 def send_msg( message, from_addr, recipients = None ):
-    
-	if 'relay' in cfg and 'host' in cfg['relay'] and 'enc_port' in cfg['relay']:
-		relay = (cfg['relay']['host'], int(cfg['relay']['enc_port']))
+	if conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'enc_port'):
+		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'enc_port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
 		smtp.sendmail( from_addr, recipients, message.as_string() )
 	else:
-		log("Could not send mail due to wrong configuration")
+		LOG.info("Could not send mail due to wrong configuration")
 
 if __name__ == "__main__":
 #	try:
+		conf.load_config()
+		lacre.init_logging(conf.get_item('logging', 'config'))
+
+		LOG = logging.getLogger(__name__)
+
+		CERT_PATH = conf.get_item('smime', 'cert_path') + '/'
+
 		# Read e-mail from stdin
 		raw = sys.stdin.read()
 		register_msg = email.message_from_string( raw )
@@ -63,18 +54,18 @@ if __name__ == "__main__":
 				break
 
 		if sign_part == None:
-			log("Unable to find PKCS7 signature or public PGP key in registration email")
+			LOG.info("Unable to find PKCS7 signature or public PGP key in registration email")
 
-			failure_msg = file( cfg['mailregister']['mail_templates'] + "/registrationError.md").read()
+			failure_msg = file( conf.get_item('mailregister', 'mail_templates') + "/registrationError.md").read()
 			msg = MIMEMultipart("alternative")
-			msg["From"] = cfg['mailregister']['register_email']
+			msg["From"] = conf.get_item('mailregister', 'register_email')
 			msg["To"] = from_addr
 			msg["Subject"] = "S/MIME / OpenPGP registration failed"
 
 			msg.attach(MIMEText(failure_msg, 'plain'))
 			msg.attach(MIMEText(markdown.markdown(failure_msg), 'html'))
 
-			send_msg(msg, cfg['mailregister']['register_email'], [from_addr])
+			send_msg(msg, conf.get_item('mailregister', 'register_email'), [from_addr])
 			sys.exit(0)
 		
 		if sign_type == 'smime':
@@ -105,42 +96,42 @@ if __name__ == "__main__":
 					
 			# format in user-specific data
 			# sending success mail only for S/MIME as GPGMW handles this on its own
-			success_msg = file(cfg['mailregister']['mail_templates']+"/registrationSuccess.md").read()
+			success_msg = file(conf.get_item('mailregister', 'mail_templates')+"/registrationSuccess.md").read()
 			success_msg = success_msg.replace("[:FROMADDRESS:]", from_addr)
 			
 			msg = MIMEMultipart("alternative")
-			msg["From"] = cfg['mailregister']['register_email']
+			msg["From"] = conf.get_item('mailregister', 'register_email')
 			msg["To"] = from_addr
 			msg["Subject"] = "S/MIME certificate registration succeeded"
 
 			msg.attach(MIMEText(success_msg, 'plain'))
 			msg.attach(MIMEText(markdown.markdown(success_msg), 'html'))
 			
-			send_msg(msg, cfg['mailregister']['register_email'], [from_addr])
+			send_msg(msg, conf.get_item('mailregister', 'register_email'), [from_addr])
 			
-			log("S/MIME Registration succeeded")
+			LOG.info("S/MIME Registration succeeded")
 		elif sign_type == 'pgp':
 			# send POST to gpg-mailgate webpanel
 			sig = sign_part
 			payload = {'email': from_addr, 'key': sig}
-			r = requests.post(cfg['mailregister']['webpanel_url'], data=payload)
+			r = requests.post(conf.get_item('mailregister', 'webpanel_url'), data=payload)
 
 			if r.status_code != 200:
-				log("Could not hand registration over to GPGMW. Error: %s" % r.status_code)
-				error_msg = file(cfg['mailregister']['mail_templates']+"/gpgmwFailed.md").read()
+				LOG.info("Could not hand registration over to GPGMW. Error: %s" % r.status_code)
+				error_msg = open(conf.get_item('mailregister', 'mail_templates')+"/gpgmwFailed.md").read()
 				error_msg = error_msg.replace("[:FROMADDRESS:]", from_addr)
 			
 				msg = MIMEMultipart("alternative")
-				msg["From"] = cfg['mailregister']['register_email']
+				msg["From"] = conf.get_item('mailregister', 'register_email')
 				msg["To"] = from_addr
 				msg["Subject"] = "PGP key registration failed"
 
 				msg.attach(MIMEText(error_msg, 'plain'))
 				msg.attach(MIMEText(markdown.markdown(error_msg), 'html'))
 			
-				send_msg(msg, cfg['mailregister']['register_email'], [from_addr])
+				send_msg(msg, conf.get_item('mailregister', 'register_email'), [from_addr])
 			else:
-				log("PGP registration is handed over to GPGMW")
+				LOG.info("PGP registration is handed over to GPGMW")
 #	except:
-#		log("Registration exception")
+#		LOG.info("Registration exception")
 #		sys.exit(0)
