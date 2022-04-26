@@ -82,7 +82,8 @@ def confirm_key( content, email ):
 		if not os.path.exists(tmpkeyhome):
 			break
 
-	os.mkdir(tmpkeyhome)
+	# let only the owner access the directory, otherwise gpg would complain
+	os.mkdir(tmpkeyhome, mode=0o700)
 	localized_env = os.environ.copy()
 	localized_env["LANG"] = "C"
 	p = subprocess.Popen( build_command(tmpkeyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env )
