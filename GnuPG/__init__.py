@@ -71,11 +71,19 @@ def public_keys( keyhome ):
 			email = None
 	return keys
 
-# confirms a key has a given email address
+def to_bytes(s) -> bytes:
+	if isinstance(s, str):
+		return bytes(s, sys.getdefaultencoding())
+	else:
+		return s
+
+# Confirms a key has a given email address by importing it into a temporary
+# keyring.  If this operation succeeds and produces a message mentioning the
+# expected email, a key is confirmed.
 def confirm_key( content, email ):
 	tmpkeyhome = ''
-	if isinstance(content, str):
-		content = bytes(content, sys.getdefaultencoding())
+	content = to_bytes(content)
+	expected_email = to_bytes(email.lower())
 
 	while True:
 		tmpkeyhome = '/tmp/' + ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(12))
@@ -92,7 +100,7 @@ def confirm_key( content, email ):
 
 	for line in result.split(b"\n"):
 		if b'imported' in line and b'<' in line and b'>' in line:
-			if line.split(b'<')[1].split(b'>')[0].lower() == email.lower():
+			if line.split(b'<')[1].split(b'>')[0].lower() == expected_email:
 				confirmed = True
 				break
 			else:
