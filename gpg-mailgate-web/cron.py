@@ -94,7 +94,7 @@ LOG = logging.getLogger(__name__)
 
 
 if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
-	(engine, conn) = setup_db_connection(cfg["database"]["url"])
+	(engine, conn) = setup_db_connection(conf.get_item("database", "url"))
 	(gpgmw_keys) = define_db_schema()
 
 	selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
@@ -107,20 +107,20 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 		delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
 		conn.execute(delq)
 		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[2])
-	    LOG.info('Deleted key for <' + row[2] + '> via import request')
+		LOG.info('Deleted key for <' + row[2] + '> via import request')
 
 		if row[0].strip(): # we have this so that user can submit blank key to remove any encryption
 			if GnuPG.confirm_key(row[0], row[2]):
 				GnuPG.add_key(conf.get_item('gpg', 'keyhome'), row[0]) # import the key to gpg
 				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
 				conn.execute(modq) # mark key as accepted
-			    LOG.info('Imported key from <' + row[2] + '>')
+				LOG.info('Imported key from <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
 				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 				conn.execute(delq) # delete key
-			    LOG.info('Import confirmation failed for <' + row[2] + '>')
+				LOG.info('Import confirmation failed for <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration failed", "registrationError.md", row[2] )
 		else:
@@ -138,6 +138,6 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[0])
 		delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 		conn.execute(delq)
-	    LOG.info('Deleted key for <' + row[0] + '>')
+		LOG.info('Deleted key for <' + row[0] + '>')
 else:
 	print("Warning: doing nothing since database settings are not configured!")
