@@ -71,25 +71,36 @@ def public_keys( keyhome ):
 			email = None
 	return keys
 
-# confirms a key has a given email address
+def to_bytes(s) -> bytes:
+	if isinstance(s, str):
+		return bytes(s, sys.getdefaultencoding())
+	else:
+		return s
+
+# Confirms a key has a given email address by importing it into a temporary
+# keyring.  If this operation succeeds and produces a message mentioning the
+# expected email, a key is confirmed.
 def confirm_key( content, email ):
 	tmpkeyhome = ''
+	content = to_bytes(content)
+	expected_email = to_bytes(email.lower())
 
 	while True:
 		tmpkeyhome = '/tmp/' + ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(12))
 		if not os.path.exists(tmpkeyhome):
 			break
 
-	os.mkdir(tmpkeyhome)
+	# let only the owner access the directory, otherwise gpg would complain
+	os.mkdir(tmpkeyhome, mode=0o700)
 	localized_env = os.environ.copy()
 	localized_env["LANG"] = "C"
 	p = subprocess.Popen( build_command(tmpkeyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env )
 	result = p.communicate(input=content)[1]
 	confirmed = False
 
-	for line in result.split("\n"):
-		if 'imported' in line and '<' in line and '>' in line:
-			if line.split('<')[1].split('>')[0].lower() == email.lower():
+	for line in result.split(b"\n"):
+		if b'imported' in line and b'<' in line and b'>' in line:
+			if line.split(b'<')[1].split(b'>')[0].lower() == expected_email:
 				confirmed = True
 				break
 			else:
@@ -102,6 +113,8 @@ def confirm_key( content, email ):
 
 # adds a key and ensures it has the given email address
 def add_key( keyhome, content ):
+	if isinstance(content, str):
+		content = bytes(content, sys.getdefaultencoding())
 	p = subprocess.Popen( build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
 	p.communicate(input=content)
 	p.wait()

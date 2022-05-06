@@ -1,5 +1,5 @@
 .POSIX:
-.PHONY: test unittest pre-clean clean
+.PHONY: test e2etest unittest crontest pre-clean clean
 
 #
 # On systems where Python 3.x binary has a different name, just
@@ -12,6 +12,13 @@
 #
 PYTHON = python3
 
+TEST_DB = test/lacre.db
+
+#
+# Main goal to run tests.
+#
+test: e2etest unittest crontest
+
 #
 # Run a set of end-to-end tests.
 #
@@ -19,8 +26,26 @@ PYTHON = python3
 # file.  Basically this is just a script that feeds GPG Mailgate with
 # known input and checks whether output meets expectations.
 #
-test: test/tmp test/logs pre-clean
+e2etest: test/tmp test/logs pre-clean
 	$(PYTHON) test/e2e_test.py
+
+#
+# Run a basic cron-job test.
+#
+# We use PYTHONPATH to make sure that cron.py can import GnuPG
+# package.  We also set GPG_MAILGATE_CONFIG env. variable to make sure
+# it slurps the right config.
+#
+crontest: clean-db $(TEST_DB)
+	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd` $(PYTHON) gpg-mailgate-web/cron.py
+
+$(TEST_DB):
+	$(PYTHON) test/schema.py $(TEST_DB)
+
+# Before running the crontest goal we need to make sure that the
+# database gets regenerated.
+clean-db:
+	rm -f $(TEST_DB)
 
 #
 # Run unit tests

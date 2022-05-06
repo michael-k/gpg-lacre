@@ -6,10 +6,17 @@ feed some input to GPG Mailgate and inspect the output.
 
 ## Running tests
 
-To run tests, use command `make test` or `make unittest`.
+To run tests, use command `make test`.
 
-Tests produce some helpful logs, so inspect contents of `test/logs` directory
-if something goes wrong.
+There are 3 types of tests:
+
+  * `make e2etest` -- they cover a complete Lacre flow, from feeding it with
+    an email to accepting its encrypted form;
+  * `make unittest` -- just small tests of small units of code;
+  * `make crontest` -- execute cron job with a SQLite database.
+
+E2E tests (`make e2etest`) should produce some helpful logs, so inspect
+contents of `test/logs` directory if something goes wrong.
 
 If your system's Python binary isn't found in your `$PATH` or you want to use
 a specific binary, use make's macro overriding: `make test

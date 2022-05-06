@@ -21,14 +21,22 @@
 
 from configparser import RawConfigParser
 import GnuPG
-import MySQLdb
+import sqlalchemy
+from sqlalchemy.sql import select, delete, update, and_
 import smtplib
 import markdown
 import syslog
-from email.MIMEText import MIMEText
+import os
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# Environment variable name we read to retrieve configuration path.  This is to
+# enable non-root users to set up and run GPG Mailgate and to make the software
+# testable.
+CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
+
 def appendLog(msg):
+	print(msg)
 	if 'logging' in cfg and 'file' in cfg['logging']:
 		if cfg['logging'].get('file') == "syslog":
 			syslog.syslog(syslog.LOG_INFO | syslog.LOG_MAIL, msg)
@@ -37,75 +45,112 @@ def appendLog(msg):
 			logfile.write(msg + "\n")
 			logfile.close()
 
+def load_file(name):
+    f = open(name)
+    data = f.read()
+    f.close()
+    return data
+
+def authenticate_maybe(smtp):
+	if  'smtp' in cfg and 'enabled' in cfg['smtp'] and cfg['smtp']['enabled'] == 'true':
+		smtp.connect(cfg['smtp']['host'],cfg['smtp']['port'])
+		smtp.ehlo()
+		if 'starttls' in cfg['smtp'] and cfg['smtp']['starttls'] == 'true':
+			smtp.starttls()
+		smtp.ehlo()
+		smtp.login(cfg['smtp']['username'], cfg['smtp']['password'])
+
 def send_msg( mailsubject, messagefile, recipients = None ):
-	mailbody = file( cfg['cron']['mail_templates'] + "/" + messagefile).read()
+	mailbody = load_file( cfg['cron']['mail_templates'] + "/" + messagefile)
 	msg = MIMEMultipart("alternative")
 
 	msg["From"] = cfg['cron']['notification_email']
 	msg["To"] = recipients
 	msg["Subject"] = mailsubject
-	
+
 	msg.attach(MIMEText(mailbody, 'plain'))
 	msg.attach(MIMEText(markdown.markdown(mailbody), 'html'))
-	
+
 	if 'relay' in cfg and 'host' in cfg['relay'] and 'enc_port' in cfg['relay']:
 		relay = (cfg['relay']['host'], int(cfg['relay']['enc_port']))
 		smtp = smtplib.SMTP(relay[0], relay[1])
+		authenticate_maybe(smtp)
 		smtp.sendmail( cfg['cron']['notification_email'], recipients, msg.as_string() )
 	else:
 		appendLog("Could not send mail due to wrong configuration")
 
+def setup_db_connection(url):
+	engine = sqlalchemy.create_engine(url)
+	return (engine, engine.connect())
+
+def define_db_schema():
+	meta = sqlalchemy.MetaData()
+
+	gpgmw_keys = sqlalchemy.Table('gpgmw_keys', meta,
+								  sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
+								  sqlalchemy.Column('email', sqlalchemy.String(256)),
+								  sqlalchemy.Column('publickey', sqlalchemy.Text),
+								  sqlalchemy.Column('confirm', sqlalchemy.String(32)),
+								  sqlalchemy.Column('status', sqlalchemy.Integer),
+								  sqlalchemy.Column('time', sqlalchemy.DateTime))
+
+	return (gpgmw_keys)
+
+
 # Read configuration from /etc/gpg-mailgate.conf
 _cfg = RawConfigParser()
-_cfg.read('/etc/gpg-mailgate.conf')
+_cfg.read(os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf'))
 cfg = dict()
 for sect in _cfg.sections():
 	cfg[sect] = dict()
 	for (name, value) in _cfg.items(sect):
 		cfg[sect][name] = value
 
-if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabled'] == 'yes' and 'name' in cfg['database'] and 'host' in cfg['database'] and 'username' in cfg['database'] and 'password' in cfg['database']:
-	connection = MySQLdb.connect(host = cfg['database']['host'], user = cfg['database']['username'], passwd = cfg['database']['password'], db = cfg['database']['name'], port = 3306)
-	cursor = connection.cursor()
+if 'database' in cfg and 'enabled' in cfg['database'] and cfg['database']['enabled'] == 'yes' and 'url' in cfg['database']:
+	(engine, conn) = setup_db_connection(cfg["database"]["url"])
+	(gpgmw_keys) = define_db_schema()
 
-	# import keys
-	cursor.execute("SELECT publickey, id, email FROM gpgmw_keys WHERE status = 0 AND confirm = '' LIMIT 100")
-	result_set = cursor.fetchall()
+	selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
+	  .where(and_(gpgmw_keys.c.status == 0, gpgmw_keys.c.confirm == ""))\
+	  .limit(100)
+	result_set = conn.execute(selq)
 
 	for row in result_set:
 		# delete any other public keys associated with this confirmed email address
-		cursor.execute("DELETE FROM gpgmw_keys WHERE email = %s AND id != %s", (row[2], row[1],))
+		delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
+		conn.execute(delq)
 		GnuPG.delete_key(cfg['gpg']['keyhome'], row[2])
 		appendLog('Deleted key for <' + row[2] + '> via import request')
 
 		if row[0].strip(): # we have this so that user can submit blank key to remove any encryption
 			if GnuPG.confirm_key(row[0], row[2]):
 				GnuPG.add_key(cfg['gpg']['keyhome'], row[0]) # import the key to gpg
-				cursor.execute("UPDATE gpgmw_keys SET status = 1 WHERE id = %s", (row[1],)) # mark key as accepted
+				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
+				conn.execute(modq) # mark key as accepted
 				appendLog('Imported key from <' + row[2] + '>')
 				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
-				cursor.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],)) # delete key
+				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+				conn.execute(delq) # delete key
 				appendLog('Import confirmation failed for <' + row[2] + '>')
 				if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 					send_msg( "PGP key registration failed", "registrationError.md", row[2] )
 		else:
 			# delete key so we don't continue processing it
-			cursor.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],))
+			delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+			conn.execute(delq)
 			if 'send_email' in cfg['cron'] and cfg['cron']['send_email'] == 'yes':
 				send_msg( "PGP key deleted", "keyDeleted.md", row[2])
 
-		connection.commit()
-
 	# delete keys
-	cursor.execute("SELECT email, id FROM gpgmw_keys WHERE status = 2 LIMIT 100")
-	result_set = cursor.fetchall()
+	stat2q = select(gpgmw_keys.c.email, gpgmw_keys.c.id).where(gpgmw_keys.c.status == 2).limit(100)
+	stat2_result_set = conn.execute(stat2q)
 
-	for row in result_set:
+	for row in stat2_result_set:
 		GnuPG.delete_key(cfg['gpg']['keyhome'], row[0])
-		cursor.execute("DELETE FROM gpgmw_keys WHERE id = %s", (row[1],))
+		delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+		conn.execute(delq)
 		appendLog('Deleted key for <' + row[0] + '>')
-		connection.commit()
 else:
 	print("Warning: doing nothing since database settings are not configured!")
