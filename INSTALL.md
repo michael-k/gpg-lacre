@@ -14,7 +14,7 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 
 ## Install GPG-Mailgate
 ### Requirements
-- Python 2.X is already installed (GPG-Mailgate is not Python 3 compatible)
+- Python 3.X is already installed
 - Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems
 - GnuPG is already installed and configured
 
@@ -39,11 +39,13 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
         chown nobody:nogroup /usr/local/bin/gpg-mailgate.py
         chmod u+x /usr/local/bin/gpg-mailgate.py
 
-5. Place the `GnuPG` directory in `/usr/local/lib/python2.7/dist-packages` (replace 2.7 with your Python 2 version)
+5. Place the `GnuPG` directory in `/usr/local/lib/python3.x/dist-packages` (replace 3.x with your Python version)
 
 6. Configure `/etc/gpg-mailgate.conf` based on the provided `gpg-mailgate.conf.sample`. Change the settings according to your configuration. If you follow this guide and have a standard configuration for postfix, you don't need to change much. 
 
-7. Add the following to the end of `/etc/postfix/master.cf`
+7. Configure logging by copying `gpg-lacre-logging.conf.sample` to `/etc/gpg-lacre-logging.conf` and editing it according to your needs.  The path to this file is included in `[logging]` section of `gpg-mailgate.conf` file, so if you place it somewhere else, make sure to update the path too.  See also: [Configuration file format](https://docs.python.org/3/library/logging.config.html#configuration-file-format).
+
+8. Add the following to the end of `/etc/postfix/master.cf`
 
         gpg-mailgate    unix    -   n   n   -   -   pipe
             flags= user=nobody argv=/usr/local/bin/gpg-mailgate.py ${recipient}
@@ -60,15 +62,15 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 
     If you use Postfix versions from 2.5 onwards, it is recommended to change `${recipient}` to `${original_recipient}` in line two of the lines above.
 
-8. Add the following line to `/etc/postfix/main.cf`
+9. Add the following line to `/etc/postfix/main.cf`
 
         content_filter = gpg-mailgate
 
-9. Optional: GPG can automatically download new public keys for automatic signature verification. To enable automatic create the file `/var/gpgmailgate/.gnupg/gpg.conf`. Add the following line to the file:
+10. Optional: GPG can automatically download new public keys for automatic signature verification. To enable automatic create the file `/var/gpgmailgate/.gnupg/gpg.conf`. Add the following line to the file:
 
         keyserver-options auto-key-retrieve
 
-10. Restart Postfix
+11. Restart Postfix
 
 You are now ready to go. To add a public key for encryption just use the following command:
         
@@ -112,10 +114,10 @@ You also can remove a private key by using the following command. Replace `user@
 - A webserver is installed and reachable
 - The webserver is able to handle PHP scripts
 - MySQL is installed
-- Python 2.X is already installed
+- Python 3.X is already installed
 
 ### Installation
-All files you need can be found in the [gpg-mailgate-web] (gpg-mailgate-web/) directory.
+All files you need can be found in the [gpg-mailgate-web](gpg-mailgate-web/) directory.
 
 1. Install the Python-mysqldb and Python-markdown modules:
 
@@ -127,7 +129,7 @@ All files you need can be found in the [gpg-mailgate-web] (gpg-mailgate-web/) di
 
 4. Edit the config file located at `/etc/gpg-mailgate.conf`. Set `enabled = yes` in `[database]` and fill in the necessary settings for the database connection.
 
-5. Copy the files located in the [public_html] (gpg-mailgate-web/public_html) directory onto your webserver. They can also be placed in a subdirectory on your webserver.
+5. Copy the files located in the [public_html](gpg-mailgate-web/public_html) directory onto your webserver. They can also be placed in a subdirectory on your webserver.
 
 6. On your webserver move the `config.sample.php` file to `config.php` and edit the configuration file.
 
@@ -135,7 +137,7 @@ All files you need can be found in the [gpg-mailgate-web] (gpg-mailgate-web/) di
         
         mkdir -p /var/gpgmailgate/cron_templates
         
-8. Copy the templates found in the [cron_templates] (cron_templates/) directory into the newly created directory and transfer ownership:
+8. Copy the templates found in the [cron_templates](cron_templates/) directory into the newly created directory and transfer ownership:
 
         chown -R nobody:nogroup /var/gpgmailgate/cron_templates
 
@@ -151,7 +153,7 @@ All files you need can be found in the [gpg-mailgate-web] (gpg-mailgate-web/) di
 11. Test your installation.
 
 ### GPG-Mailgate-Web as keyserver
-GPG-Mailgate-Web can also be used as a keyserver. For more information have a look at GPG-Mailgate-Web's [readme] (gpg-mailgate-web/README).
+GPG-Mailgate-Web can also be used as a keyserver. For more information have a look at GPG-Mailgate-Web's [readme](gpg-mailgate-web/README).
 
 ## Install Register-handler
 ### Requirements
@@ -168,7 +170,7 @@ GPG-Mailgate-Web can also be used as a keyserver. For more information have a lo
         
         mkdir -p /var/gpgmailgate/register_templates
         
-3. Copy the templates found in the [register_templates] (register_templates/) directory into the newly created directory and transfer ownership:
+3. Copy the templates found in the [register_templates](register_templates/) directory into the newly created directory and transfer ownership:
 
         chown -R nobody:nogroup /var/gpgmailgate/register_templates
         

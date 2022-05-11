@@ -1,0 +1,49 @@
+# Example configuration for Lacre logging.  If you don't intend to change the
+# log format, you can just keep this file unchanged.
+
+[loggers]
+keys=root
+
+[logger_root]
+level=NOTSET
+# Append ",syslog" to the following line if you want to send entries
+# to syslog too.
+handlers=lacrelog
+
+[handlers]
+# Append ",syslog" to the following line if you want to send entries
+# to syslog too.
+keys=lacrelog
+
+[formatters]
+keys=postfixfmt
+
+#
+# By default, include messages from all log levels up to DEBUG.
+# However, productive systems may use something less verbose, like
+# WARN or even ERROR.
+#
+[handler_lacrelog]
+class=FileHandler
+level=DEBUG
+formatter=postfixfmt
+args=('test/logs/lacre.log', 'a+')
+
+#
+# Logging to syslog is disabled by default, but you can enable it if
+# you like.
+#
+[handler_syslog]
+class=handlers.SysLogHandler
+level=INFO
+formatter=postfixfmt
+args=('/dev/log', handlers.SysLogHandler.LOG_MAIL)
+
+#
+# Default Postfix log format.
+#
+[formatter_postfixfmt]
+format=%(asctime)s %(module)s[%(process)d]: %(message)s
+datefmt=%b %e %H:%M:%S
+style=%
+validate=True
