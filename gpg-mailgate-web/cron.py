@@ -41,13 +41,15 @@ def load_file(name):
     return data
 
 def authenticate_maybe(smtp):
-	if  'smtp' in cfg and 'enabled' in cfg['smtp'] and cfg['smtp']['enabled'] == 'true':
-		smtp.connect(cfg['smtp']['host'],cfg['smtp']['port'])
+	if conf.config_item_equals('smtp', 'enabled', 'true'):
+		LOG.debug(f"Connecting to {conf.get_item('smtp', 'host')}:{conf.get_item('smtp', 'port')}")
+		smtp.connect(conf.get_item('smtp', 'host'), conf.get_item('smtp', 'port'))
 		smtp.ehlo()
-		if 'starttls' in cfg['smtp'] and cfg['smtp']['starttls'] == 'true':
+		if conf.config_item_equals('smtp', 'starttls', 'true'):
+			LOG.debug("StartTLS enabled")
 			smtp.starttls()
 		smtp.ehlo()
-		smtp.login(cfg['smtp']['username'], cfg['smtp']['password'])
+		smtp.login(conf.get_item('smtp', 'username'), conf.get_item('smtp', 'password'))
 
 def send_msg( mailsubject, messagefile, recipients = None ):
 	mailbody = load_file( conf.get_item('cron', 'mail_templates') + "/" + messagefile).read()
@@ -100,11 +102,13 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 	selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
 	  .where(and_(gpgmw_keys.c.status == 0, gpgmw_keys.c.confirm == ""))\
 	  .limit(100)
+	LOG.debug(f"Retrieving keys to be processed: {selq}")
 	result_set = conn.execute(selq)
 
 	for row in result_set:
 		# delete any other public keys associated with this confirmed email address
 		delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
+		LOG.debug(f"Deleting public keys associated with confirmed email: {delq}")
 		conn.execute(delq)
 		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[2])
 		LOG.info('Deleted key for <' + row[2] + '> via import request')
@@ -113,12 +117,14 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 			if GnuPG.confirm_key(row[0], row[2]):
 				GnuPG.add_key(conf.get_item('gpg', 'keyhome'), row[0]) # import the key to gpg
 				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
+				LOG.debug(f"Key imported, updating key: {modq}")
 				conn.execute(modq) # mark key as accepted
 				LOG.info('Imported key from <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
 				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+				LOG.debug(f"Cannot confirm key, deleting it: {delq}")
 				conn.execute(delq) # delete key
 				LOG.info('Import confirmation failed for <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
@@ -126,6 +132,7 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 		else:
 			# delete key so we don't continue processing it
 			delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+			LOG.debug(f"Deleting key: {delq}")
 			conn.execute(delq)
 			if conf.config_item_equals('cron', 'send_email', 'yes'):
 				send_msg( "PGP key deleted", "keyDeleted.md", row[2])
@@ -137,6 +144,7 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 	for row in stat2_result_set:
 		GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[0])
 		delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+		LOG.debug(f"Deleting keys that have already been processed: {delq}")
 		conn.execute(delq)
 		LOG.info('Deleted key for <' + row[0] + '>')
 else:
