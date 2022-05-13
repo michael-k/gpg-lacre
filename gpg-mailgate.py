@@ -47,7 +47,7 @@ def gpg_encrypt( raw_message, recipients ):
 	global LOG
 
 	if not conf.config_item_set('gpg', 'keyhome'):
-		LOG.info("No valid entry for gpg keyhome. Encryption aborted.")
+		LOG.error("No valid entry for gpg keyhome. Encryption aborted.")
 		return recipients
 
 	keys = GnuPG.public_keys( conf.get_item('gpg', 'keyhome') )
@@ -370,7 +370,7 @@ def send_msg( message, recipients ):
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
 		if not (conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'port')):
-			LOG.info("Missing settings for relay. Sending email aborted.")
+			LOG.warning("Missing settings for relay. Sending email aborted.")
 			return None
 		LOG.info("Sending email to: <%s>" % '> <'.join( recipients ))
 		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))

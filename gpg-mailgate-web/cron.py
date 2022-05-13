@@ -119,14 +119,14 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 				modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status = 1)
 				LOG.debug(f"Key imported, updating key: {modq}")
 				conn.execute(modq) # mark key as accepted
-				LOG.info('Imported key from <' + row[2] + '>')
+				LOG.warning('Imported key from <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration successful", "registrationSuccess.md", row[2] )
 			else:
 				delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
 				LOG.debug(f"Cannot confirm key, deleting it: {delq}")
 				conn.execute(delq) # delete key
-				LOG.info('Import confirmation failed for <' + row[2] + '>')
+				LOG.warning('Import confirmation failed for <' + row[2] + '>')
 				if conf.config_item_equals('cron', 'send_email', 'yes'):
 					send_msg( "PGP key registration failed", "registrationError.md", row[2] )
 		else:
@@ -149,3 +149,4 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
 		LOG.info('Deleted key for <' + row[0] + '>')
 else:
 	print("Warning: doing nothing since database settings are not configured!")
+	LOG.error("Warning: doing nothing since database settings are not configured!")
