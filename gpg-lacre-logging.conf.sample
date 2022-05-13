@@ -1,0 +1,57 @@
+# Example configuration for Lacre logging.  If you don't intend to change the
+# log format, you can just keep this file unchanged.
+
+# HANDLERS:
+#
+# Two main targets for log entries are defined here: syslog and a plain text
+# log file.  They are available as "handlers" named "syslog" and "lacrelog"
+# respectively.
+
+[loggers]
+keys=root
+
+[logger_root]
+level=NOTSET
+# Comma-separated handler names, see HANDLERS note at the top.
+handlers=syslog
+
+[handlers]
+# Comma-separated handler names, see HANDLERS note at the top.
+keys=syslog
+
+[formatters]
+keys=postfixfmt
+
+#
+# By default, include messages from all log levels up to DEBUG.
+# However, productive systems may use something less verbose, like
+# WARN or even ERROR.
+#
+[handler_lacrelog]
+class=FileHandler
+level=DEBUG
+formatter=postfixfmt
+args=('test/logs/lacre.log', 'a+')
+
+# You may want to change the second argument (handlers.SysLogHandler.LOG_MAIL)
+# to change the syslog facility used to record messages from Lacre.
+#
+# Options you can consider are "localX" facilities, available under names from
+# handlers.SysLogHandler.LOG_LOCAL0 to handlers.SysLogHandler.LOG_LOCAL7.
+#
+# Please refer to your syslog configuration for details on how to separate
+# records from different facilities.
+[handler_syslog]
+class=handlers.SysLogHandler
+level=INFO
+formatter=postfixfmt
+args=('/dev/log', handlers.SysLogHandler.LOG_MAIL)
+
+#
+# Default Postfix log format.
+#
+[formatter_postfixfmt]
+format=%(asctime)s %(module)s[%(process)d]: %(message)s
+datefmt=%b %e %H:%M:%S
+style=%
+validate=True
