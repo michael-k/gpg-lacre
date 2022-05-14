@@ -46,6 +46,9 @@ dec_regex = None
 [gpg]
 # the directory where gpg-mailgate public keys are stored
 # (see INSTALL for details)
+#
+# Note that this directory should be accessible only for the Lacre user,
+# i.e. have mode 700.
 keyhome = /var/gpgmailgate/.gnupg
 
 [smime]
@@ -56,7 +59,9 @@ cert_path = /var/gpgmailgate/smime
 # settings for the register-handler
 register_email = register@yourdomain.tld
 mail_templates = /var/gpgmailgate/register_templates
-# URL to webpanel. The server should be able to reach it
+
+# URL to webpanel.  Upon receiving an email with a key, register-handler
+# uploads it to the web panel.
 webpanel_url = http://yourdomain.tld
 
 [cron]
@@ -93,17 +98,18 @@ port = 587
 starttls = true
 
 [database]
-# uncomment the settings below if you want
-#  to read keys from a gpg-mailgate-web database
-# TODO: see if this section is required by PHP. If not, delete it.
+# edit the settings below if you want to read keys from a
+# gpg-mailgate-web database other than SQLite
 enabled = yes
-name = gpgmw
-host = localhost
-username = gpgmw
-password = password
+url = sqlite:///test.db
+
+# For a MySQL database "gpgmw", user "gpgmw" and password "password",
+# use the following URL:
+#
+#url = mysql://gpgmw:password@localhost/gpgmw
+#
 # For other RDBMS backends, see:
 # https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls
-url = sqlite:///test.db
 
 [enc_keymap]
 # You can find these by running the following command:

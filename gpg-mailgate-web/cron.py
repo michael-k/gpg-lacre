@@ -52,7 +52,7 @@ def authenticate_maybe(smtp):
 		smtp.login(conf.get_item('smtp', 'username'), conf.get_item('smtp', 'password'))
 
 def send_msg( mailsubject, messagefile, recipients = None ):
-	mailbody = load_file( conf.get_item('cron', 'mail_templates') + "/" + messagefile).read()
+	mailbody = load_file( conf.get_item('cron', 'mail_templates') + "/" + messagefile)
 	msg = MIMEMultipart("alternative")
 
 	msg["From"] = conf.get_item('cron', 'notification_email')
