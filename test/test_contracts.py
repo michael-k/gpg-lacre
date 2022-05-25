@@ -26,6 +26,7 @@ documentation.
 
 import email
 import unittest
+from configparser import RawConfigParser
 
 class EmailParsingTest(unittest.TestCase):
 	"""This test serves as a package contract and documentation of its behaviour."""
@@ -42,7 +43,18 @@ class EmailParsingTest(unittest.TestCase):
 		self.assertEqual(parsed["From"], "alice@lacre.io")
 		self.assertEqual(parsed["To"], "bob@lacre.io")
 		self.assertEqual(parsed["Subject"], "Test message")
+
+	def test_bytes_message_payload_decoded_produces_bytes(self):
+		rawmsg = b"From: alice@lacre.io\r\n" \
+		  + b"To: bob@lacre.io\r\n" \
+		  + b"Subject: Test message\r\n" \
+		  + b"\r\n" \
+		  + b"Test message from Alice to Bob.\r\n"
+
+		parsed = email.message_from_bytes(rawmsg)
+
 		self.assertEqual(parsed.get_payload(), "Test message from Alice to Bob.\r\n")
+		self.assertEqual(parsed.get_payload(decode=True), b"Test message from Alice to Bob.\r\n")
 
 	def test_message_from_string_produces_message_with_str_headers(self):
 		rawmsg = "From: alice@lacre.io\r\n" \
@@ -56,7 +68,25 @@ class EmailParsingTest(unittest.TestCase):
 		self.assertEqual(parsed["From"], "alice@lacre.io")
 		self.assertEqual(parsed["To"], "bob@lacre.io")
 		self.assertEqual(parsed["Subject"], "Test message")
+
+	def test_str_message_payload_decoded_produces_bytes(self):
+		rawmsg = "From: alice@lacre.io\r\n" \
+		  + "To: bob@lacre.io\r\n" \
+		  + "Subject: Test message\r\n" \
+		  + "\r\n" \
+		  + "Test message from Alice to Bob.\r\n"
+
+		parsed = email.message_from_string(rawmsg)
+
 		self.assertEqual(parsed.get_payload(), "Test message from Alice to Bob.\r\n")
+		self.assertEqual(parsed.get_payload(decode=True), b"Test message from Alice to Bob.\r\n")
+
+class RawConfigParserTest(unittest.TestCase):
+	def test_config_parser_returns_str(self):
+		cp = RawConfigParser()
+		cp.read("test/sample.ini")
+		self.assertEqual(cp.get("foo", "bar"), "quux")
+		self.assertEqual(cp.get("foo", "baz"), "14")
 
 if __name__ == '__main__':
 	unittest.main()
