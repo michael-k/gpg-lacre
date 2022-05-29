@@ -51,6 +51,12 @@ def build_config(config):
     cp.add_section("enc_keymap")
     cp.set("enc_keymap", "alice@disposlab", "1CD245308F0963D038E88357973CF4D9387C44D7")
     cp.set("enc_keymap", "bob@disposlab", "19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67")
+    cp.set("enc_keymap", "evan@disposlab", "530B1BB2D0CC7971648198BBA4774E507D3AF5BC")
+
+    cp.add_section("pgp_style")
+    # Default style is PGP/Inline, so to cover more branches, one test identity
+    # uses PGP/MIME.
+    cp.set("pgp_style", "evan@disposlab", "mime")
 
     logging.debug(f"Created config with keyhome={config['gpg_keyhome']}, cert_path={config['smime_certpath']} and relay at port {config['port']}")
     return cp

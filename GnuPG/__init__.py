@@ -35,20 +35,6 @@ def build_command(key_home, *args, **kwargs):
 	cmd = ["gpg", '--homedir', key_home] + list(args)
 	return cmd
 
-def private_keys( keyhome ):
-	cmd = build_command(keyhome, '--list-secret-keys', '--with-colons')
-	p = subprocess.Popen( cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
-	p.wait()
-	keys = dict()
-	for line in p.stdout.readlines():
-		if line[0:3] == 'uid' or line[0:3] == 'sec':
-			if ('<' not in line or '>' not in line):
-				continue
-			email = line.split('<')[1].split('>')[0]
-			fingerprint = line.split(':')[4]
-			keys[fingerprint] = email
-	return keys
-
 def public_keys( keyhome ):
 	cmd = build_command(keyhome, '--list-keys', '--with-colons')
 	p = subprocess.Popen( cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
@@ -58,7 +44,7 @@ def public_keys( keyhome ):
 	fingerprint = None
 	email = None
 	for line in p.stdout.readlines():
-		line = line.decode('utf-8')
+		line = line.decode(sys.getdefaultencoding())
 		if line[0:3] == LINE_FINGERPRINT:
 			fingerprint = line.split(':')[POS_FINGERPRINT]
 		if line[0:3] == LINE_USER_ID:
