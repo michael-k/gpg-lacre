@@ -41,7 +41,11 @@ from email.mime.message import MIMEMessage
 
 import logging
 import lacre
+import lacre.text as text
 import lacre.config as conf
+
+# Exit code taken from <sysexits.h>:
+EX_CONFIG = 78
 
 def gpg_encrypt( raw_message, recipients ):
 	global LOG
@@ -198,7 +202,7 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 		encoding = sys.getdefaultencoding()
 		if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
 			additionalSubHeader="Content-Type: "+message['Content-Type']+"\n"
-			(base, encoding) = parse_content_type(message['Content-Type'])
+			(base, encoding) = text.parse_content_type(message['Content-Type'])
 			LOG.debug(f"Identified encoding as {encoding}")
 		encrypted_part.set_payload(additionalSubHeader+"\n" +message.get_payload(decode=True).decode(encoding))
 		check_nested = True
@@ -221,14 +225,6 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary
 
 	return [ pgp_ver_part, encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested) ]
-
-def parse_content_type(content_type):
-	split_at = content_type.index(';')
-	second_part = content_type[split_at+1 : ].strip()
-	if second_part.startswith('charset'):
-		return (content_type[0 : split_at], second_part[second_part.index('=') + 1 : ].strip())
-	else:
-		return (content_type[0 : split_at], sys.getdefaultencoding())
 
 def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
 	global LOG
@@ -380,9 +376,6 @@ def send_msg( message, recipients ):
 
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
-		if not (conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'port')):
-			LOG.warning("Missing settings for relay. Sending email aborted.")
-			return None
 		LOG.info("Sending email to: <%s>" % '> <'.join( recipients ))
 		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
@@ -434,8 +427,12 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
-
 LOG = logging.getLogger(__name__)
+
+missing_params = conf.validate_config()
+if missing_params:
+    LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
+    sys.exit(EX_CONFIG)
 
 # Read e-mail from stdin
 raw = sys.stdin.read()
