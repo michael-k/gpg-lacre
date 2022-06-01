@@ -4,14 +4,20 @@ PGP_INLINE_BEGIN = b"-----BEGIN PGP MESSAGE-----"
 PGP_INLINE_END = b"-----END PGP MESSAGE-----"
 
 def parse_content_type(content_type):
-	split_at = content_type.find(';')
-	if split_at < 0:
+	parts = [p.strip() for p in content_type.split(';')]
+	if len(parts) == 1:
+		# No additional attributes provided.  Use default encoding.
 		return (content_type, sys.getdefaultencoding())
-	second_part = content_type[split_at+1 : ].strip()
-	if second_part.startswith('charset'):
-		return (content_type[0 : split_at], second_part[second_part.index('=') + 1 : ].strip())
+
+	# At least one attribute provided.  Find out if any of them is named
+	# 'charset' and if so, use it.
+	ctype = parts[0]
+	encoding = [p for p in parts[1:] if p.startswith('charset=') ]
+	if encoding:
+		eq_idx = encoding[0].index('=')
+		return (ctype, encoding[0][eq_idx+1:])
 	else:
-		return (content_type[0 : split_at], sys.getdefaultencoding())
+		return (ctype, sys.getdefaultencoding())
 
 def is_pgp_inline(payload):
 	"""Finds out if the payload (bytes) contains PGP/INLINE markers."""
