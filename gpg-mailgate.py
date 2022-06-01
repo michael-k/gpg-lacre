@@ -41,7 +41,11 @@ from email.mime.message import MIMEMessage
 
 import logging
 import lacre
+import lacre.text as text
 import lacre.config as conf
+
+# Exit code taken from <sysexits.h>:
+EX_CONFIG = 78
 
 def gpg_encrypt( raw_message, recipients ):
 	global LOG
@@ -113,7 +117,7 @@ def gpg_encrypt( raw_message, recipients ):
 			else:
 				# Log message only if an unknown style is defined
 				if conf.config_item_set('pgp_style', rcpt[0]):
-					LOG.info("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
+					LOG.debug("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
 
 				# If no style is in settings defined for recipient, use default from settings
 				if conf.config_item_equals('default', 'mime_conversion', 'yes'):
@@ -175,19 +179,18 @@ def encrypt_all_payloads_inline( message, gpg_to_cmdline ):
 	return encrypted_payloads
 
 def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
-
 	# Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
-	submsg1 = email.message.Message()
-	submsg1.set_payload("Version: 1\n")
-	submsg1.set_type("application/pgp-encrypted")
-	submsg1.set_param('PGP/MIME version identification', "", 'Content-Description' )
+	pgp_ver_part = email.message.Message()
+	pgp_ver_part.set_payload("Version: 1\n")
+	pgp_ver_part.set_type("application/pgp-encrypted")
+	pgp_ver_part.set_param('PGP/MIME version identification', "", 'Content-Description' )
 
-	submsg2 = email.message.Message()
-	submsg2.set_type("application/octet-stream")
-	submsg2.set_param('name', "encrypted.asc")
-	submsg2.set_param('OpenPGP encrypted message', "", 'Content-Description' )
-	submsg2.set_param('inline', "",                'Content-Disposition' )
-	submsg2.set_param('filename', "encrypted.asc", 'Content-Disposition' )
+	encrypted_part = email.message.Message()
+	encrypted_part.set_type("application/octet-stream")
+	encrypted_part.set_param('name', "encrypted.asc")
+	encrypted_part.set_param('OpenPGP encrypted message', "", 'Content-Description' )
+	encrypted_part.set_param('inline', "",                'Content-Disposition' )
+	encrypted_part.set_param('filename', "encrypted.asc", 'Content-Disposition' )
 
 	if isinstance(message.get_payload(), str):
 		# WTF!  It seems to swallow the first line.  Not sure why.  Perhaps
@@ -195,13 +198,16 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 		# Workaround it here by prepending a blank line.
 		# This happens only on text only messages.
 		additionalSubHeader=""
+		encoding = sys.getdefaultencoding()
 		if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
 			additionalSubHeader="Content-Type: "+message['Content-Type']+"\n"
-		submsg2.set_payload(additionalSubHeader+"\n" +message.get_payload(decode=True))
+			(base, encoding) = text.parse_content_type(message['Content-Type'])
+			LOG.debug(f"Identified encoding as {encoding}")
+		encrypted_part.set_payload(additionalSubHeader+"\n" +message.get_payload(decode=True).decode(encoding))
 		check_nested = True
 	else:
 		processed_payloads = generate_message_from_payloads(message)
-		submsg2.set_payload(processed_payloads.as_string())
+		encrypted_part.set_payload(processed_payloads.as_string())
 		check_nested = False
 
 	message.preamble = "This is an OpenPGP/MIME encrypted message (RFC 2440 and 3156)"
@@ -217,13 +223,13 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 	else:
 		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary
 
-	return [ submsg1, encrypt_payload(submsg2, gpg_to_cmdline, check_nested) ]
+	return [ pgp_ver_part, encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested) ]
 
 def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
 	global LOG
 
 	raw_payload = payload.get_payload(decode=True)
-	if check_nested and b"-----BEGIN PGP MESSAGE-----" in raw_payload and b"-----END PGP MESSAGE-----" in raw_payload:
+	if check_nested and text.is_pgp_inline(raw_payload):
 		LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
 		return payload
 
@@ -297,11 +303,11 @@ def smime_encrypt( raw_message, recipients ):
 
 		s.write(out, p7)
 
-		LOG.debug("Sending message from " + from_addr + " to " + str(smime_to))
+		LOG.debug(f"Sending message from {from_addr} to {smime_to}")
 
 		send_msg(out.read(), smime_to)
 	if unsmime_to:
-		LOG.debug("Unable to find valid S/MIME certificates for " + str(unsmime_to))
+		LOG.debug(f"Unable to find valid S/MIME certificates for {unsmime_to}")
 
 	return unsmime_to
 
@@ -330,22 +336,16 @@ def get_cert_for_email( to_addr, cert_path ):
 	return None
 
 def sanitize_case_sense( address ):
-
 	if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
 		address = address.lower()
 	else:
-		if isinstance(address, str):
-			sep = '@'
-		else:
-			sep = b'@'
-		splitted_address = address.split(sep)
+		splitted_address = address.split('@')
 		if len(splitted_address) > 1:
-			address = splitted_address[0] + sep + splitted_address[1].lower()
+			address = splitted_address[0] + '@' + splitted_address[1].lower()
 
 	return address
 
 def generate_message_from_payloads( payloads, message = None ):
-
 	if message == None:
 		message = email.mime.multipart.MIMEMultipart(payloads.get_content_subtype())
 
@@ -358,7 +358,6 @@ def generate_message_from_payloads( payloads, message = None ):
 	return message
 
 def get_first_payload( payloads ):
-
 	if payloads.is_multipart():
 		return get_first_payload(payloads.get_payload(0))
 	else:
@@ -369,10 +368,7 @@ def send_msg( message, recipients ):
 
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
-		if not (conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'port')):
-			LOG.warning("Missing settings for relay. Sending email aborted.")
-			return None
-		LOG.info("Sending email to: <%s>" % '> <'.join( recipients ))
+		LOG.info(f"Sending email to: {recipients!r}")
 		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))
 		smtp = smtplib.SMTP(relay[0], relay[1])
 		if conf.config_item_equals('relay', 'starttls', 'yes'):
@@ -384,9 +380,7 @@ def send_msg( message, recipients ):
 def sort_recipients( raw_message, from_addr, to_addrs ):
 	global LOG
 
-	recipients_left = list()
-	for recipient in to_addrs:
-		recipients_left.append(sanitize_case_sense(recipient))
+	recipients_left = [sanitize_case_sense(recipient) for recipient in to_addrs]
 
 	# There is no need for nested encryption
 	first_payload = get_first_payload(raw_message)
@@ -396,7 +390,7 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 		return
 
 	first_payload = first_payload.get_payload(decode=True)
-	if b"-----BEGIN PGP MESSAGE-----" in first_payload and b"-----END PGP MESSAGE-----" in first_payload:
+	if text.is_pgp_inline(first_payload):
 		LOG.debug("Message is already encrypted as PGP/INLINE. Encryption aborted.")
 		send_msg(raw_message.as_string(), recipients_left)
 		return
@@ -423,8 +417,12 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
-
 LOG = logging.getLogger(__name__)
+
+missing_params = conf.validate_config()
+if missing_params:
+	LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
+	sys.exit(EX_CONFIG)
 
 # Read e-mail from stdin
 raw = sys.stdin.read()

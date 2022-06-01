@@ -20,11 +20,17 @@ FAIL_OVER_LOGGING_CONFIG = {
 			'class': 'logging.handlers.SysLogHandler',
 			'level': 'INFO',
 			'formatter': 'sysfmt'
+		},
+		'lacrelog': {
+			'class': 'logging.FileHandler',
+			'level': 'INFO',
+			'formatter': 'sysfmt',
+			'filename': 'lacre.log'
 		}
 	},
 	'root': {
 		'level': 'INFO',
-		'handlers': ['syslog']
+		'handlers': ['syslog', 'lacrelog']
 	}
 }
 

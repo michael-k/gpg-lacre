@@ -13,6 +13,11 @@ import os
 # testable.
 CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
 
+# List of mandatory configuration parameters.  Each item on this list should be
+# a pair: a section name and a parameter name.
+MANDATORY_CONFIG_ITEMS = [("relay", "host"),
+						  ("relay", "port")]
+
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in
 # the future.
@@ -68,3 +73,15 @@ def config_item_set(section, key) -> bool:
 def config_item_equals(section, key, value) -> bool:
 	global cfg
 	return section in cfg and key in cfg[section] and cfg[section][key] == value
+
+def validate_config():
+	"""Checks whether the configuration is complete.
+
+	Returns a list of missing parameters, so an empty list means
+	configuration is complete.
+	"""
+	missing = []
+	for (section, param) in MANDATORY_CONFIG_ITEMS:
+		if not config_item_set(section, param):
+			missing.append((section, param))
+	return missing
