@@ -341,7 +341,7 @@ def sanitize_case_sense( address ):
 	else:
 		splitted_address = address.split('@')
 		if len(splitted_address) > 1:
-			address = splitted_address[0] + sep + splitted_address[1].lower()
+			address = splitted_address[0] + '@' + splitted_address[1].lower()
 
 	return address
 
