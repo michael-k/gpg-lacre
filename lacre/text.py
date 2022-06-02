@@ -1,5 +1,8 @@
 import sys
 
+# The standard way to encode line-ending in email:
+EOL = "\r\n"
+
 PGP_INLINE_BEGIN = b"-----BEGIN PGP MESSAGE-----"
 PGP_INLINE_END = b"-----END PGP MESSAGE-----"
 

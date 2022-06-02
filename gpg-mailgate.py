@@ -181,7 +181,7 @@ def encrypt_all_payloads_inline( message, gpg_to_cmdline ):
 def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 	# Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
 	pgp_ver_part = email.message.Message()
-	pgp_ver_part.set_payload("Version: 1\n")
+	pgp_ver_part.set_payload("Version: 1"+text.EOL)
 	pgp_ver_part.set_type("application/pgp-encrypted")
 	pgp_ver_part.set_param('PGP/MIME version identification', "", 'Content-Description' )
 
@@ -200,10 +200,10 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 		additionalSubHeader=""
 		encoding = sys.getdefaultencoding()
 		if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
-			additionalSubHeader="Content-Type: "+message['Content-Type']+"\n"
+			additionalSubHeader="Content-Type: "+message['Content-Type']+text.EOL
 			(base, encoding) = text.parse_content_type(message['Content-Type'])
 			LOG.debug(f"Identified encoding as {encoding}")
-		encrypted_part.set_payload(additionalSubHeader+"\n" +message.get_payload(decode=True).decode(encoding))
+		encrypted_part.set_payload(additionalSubHeader+text.EOL +message.get_payload(decode=True).decode(encoding))
 		check_nested = True
 	else:
 		processed_payloads = generate_message_from_payloads(message)
@@ -219,9 +219,9 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 
 	# This also modifies the boundary in the body of the message, ie it gets parsed.
 	if 'Content-Type' in message:
-		message.replace_header('Content-Type', "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary)
+		message.replace_header('Content-Type', f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""+text.EOL)
 	else:
-		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary
+		message['Content-Type'] = f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""+text.EOL
 
 	return [ pgp_ver_part, encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested) ]
 
@@ -289,17 +289,17 @@ def smime_encrypt( raw_message, recipients ):
 		p7 = s.encrypt( BIO.MemoryBuffer( raw_message.as_string() ) )
 		# Output p7 in mail-friendly format.
 		out = BIO.MemoryBuffer()
-		out.write('From: ' + from_addr + '\n')
-		out.write('To: ' + raw_message['To'] + '\n')
+		out.write('From: ' + from_addr + text.EOL)
+		out.write('To: ' + raw_message['To'] + text.EOL)
 		if raw_message['Cc']:
-			out.write('Cc: ' + raw_message['Cc'] + '\n')
+			out.write('Cc: ' + raw_message['Cc'] + text.EOL)
 		if raw_message['Bcc']:
-			out.write('Bcc: ' + raw_message['Bcc'] + '\n')
+			out.write('Bcc: ' + raw_message['Bcc'] + text.EOL)
 		if raw_message['Subject']:
-			out.write('Subject: '+ raw_message['Subject'] + '\n')
+			out.write('Subject: '+ raw_message['Subject'] + text.EOL)
 
 		if conf.config_item_equals('default', 'add_header', 'yes'):
-			out.write('X-GPG-Mailgate: Encrypted by GPG Mailgate\n')
+			out.write('X-GPG-Mailgate: Encrypted by GPG Mailgate' + text.EOL)
 
 		s.write(out, p7)
 
