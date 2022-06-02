@@ -219,7 +219,7 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 
 	# This also modifies the boundary in the body of the message, ie it gets parsed.
 	if 'Content-Type' in message:
-		message.replace_header('Content-Type', "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary)
+		message.replace_header('Content-Type', "multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"%s\"\n" % boundary)
 	else:
 		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"%s\"\n" % boundary
 
