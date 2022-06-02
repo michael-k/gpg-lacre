@@ -33,6 +33,7 @@ import smtplib
 import sys
 import syslog
 import traceback
+import time
 
 
 # imports for S/MIME
@@ -413,7 +414,13 @@ def sort_recipients( raw_message, from_addr, to_addrs ):
 	# Send out mail to recipients which are left
 	send_msg(raw_message.as_string(), recipients_left)
 
+def exec_time_info(start_timestamp):
+    elapsed_s = time.time() - start_timestamp
+    process_t = time.process_time()
+    return (elapsed_s, process_t)
 
+
+start = time.time()
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
@@ -432,3 +439,6 @@ to_addrs = sys.argv[1:]
 
 # Let's start
 sort_recipients(raw_message, from_addr, to_addrs)
+(elapsed_s, process_t) = exec_time_info(start)
+
+LOG.info("Elapsed-time: {elapsed:.2f}s; Process-time: {process:.4f}s".format(elapsed=elapsed_s, process=process_t))
