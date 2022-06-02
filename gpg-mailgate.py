@@ -221,7 +221,7 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 	if 'Content-Type' in message:
 		message.replace_header('Content-Type', "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary)
 	else:
-		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\";\nboundary=\"%s\"\n" % boundary
+		message['Content-Type'] = "multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"%s\"\n" % boundary
 
 	return [ pgp_ver_part, encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested) ]
 
