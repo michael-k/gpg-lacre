@@ -23,3 +23,15 @@ class LacreTextTest(unittest.TestCase):
 		(mtype, mcharset) = lacre.text.parse_content_type('text/plain; charset="UTF-8"; some-param="Some Value"')
 		self.assertEqual(mtype, 'text/plain')
 		self.assertEqual(mcharset, '"UTF-8"')
+
+	def test_parse_email_without_delimiter(self):
+		addr = "Some.Name@example.com"
+		(addr2, topic) = lacre.text.parse_delimiter(addr)
+		self.assertEqual(addr2, "Some.Name@example.com")
+		self.assertEqual(topic, None)
+
+	def test_parse_email_with_delimiter(self):
+		addr = "Some.Name+some-topic@example.com"
+		(addr2, topic) = lacre.text.parse_delimiter(addr)
+		self.assertEqual(addr2, "Some.Name@example.com")
+		self.assertEqual(topic, "some-topic")

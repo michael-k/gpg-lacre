@@ -315,26 +315,29 @@ def smime_encrypt( raw_message, recipients ):
 def get_cert_for_email( to_addr, cert_path ):
 	global LOG
 
+	insensitive = conf.config_item_equals('default', 'mail_case_insensitive', 'yes')
+
 	files_in_directory = os.listdir(cert_path)
 	for filename in files_in_directory:
 		file_path = os.path.join(cert_path, filename)
 		if not os.path.isfile(file_path):
 			continue
 
-		if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
-			if filename.lower() == to_addr:
+		if insensitive:
+			if filename.casefold() == to_addr:
 				return (file_path, to_addr)
 		else:
 			if filename == to_addr:
 				return (file_path, to_addr)
-	# support foo+ignore@bar.com -> foo@bar.com
-	multi_email = re.match('^([^\+]+)\+([^@]+)@(.*)$', to_addr)
-	if multi_email:
-		fixed_up_email = "%s@%s" % (multi_email.group(1), multi_email.group(3))
-		LOG.debug("Multi-email %s converted to %s" % (to_addr, fixed_up_email))
-		return get_cert_for_email(fixed_up_email)
 
-	return None
+	# support foo+ignore@bar.com -> foo@bar.com
+	(fixed_up_email, topic) = text.parse_delimiter(to_addr)
+	if topic is None:
+		# delimiter not used
+		return None
+	else:
+		LOG.debug(f"Looking up certificate for {fixed_up_email} after parsing {to_addr}")
+		return get_cert_for_email(fixed_up_email, cert_path)
 
 def sanitize_case_sense( address ):
 	if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
