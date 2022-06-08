@@ -59,8 +59,14 @@ def gpg_encrypt( raw_message, recipients ):
 	for fingerprint in keys:
 		keys[fingerprint] = sanitize_case_sense(keys[fingerprint])
 
+	# This list will be filled with pairs (M, N), where M is the destination
+	# address we're going to deliver the message to and N is the identity we're
+	# going to encrypt it for.
 	gpg_to = list()
+
 	ungpg_to = list()
+
+	enc_keymap_only = conf.config_item_equals('default', 'enc_keymap_only', 'yes')
 
 	for to in recipients:
 
@@ -75,16 +81,23 @@ def gpg_encrypt( raw_message, recipients ):
 				LOG.info("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (conf.get_item('enc_keymap', to), to))
 
 		# Check if key in keychain is present
-		if to in keys.values() and not conf.config_item_equals('default', 'enc_keymap_only', 'yes'):
-			gpg_to.append( (to, to) )
-			continue
+		if not enc_keymap_only:
+			if to in keys.values():
+				gpg_to.append( (to, to) )
+				continue
+
+            # If this is an address with a delimiter (i.e. "foo+bar@example.com"),
+            # then strip whatever is found after the delimiter and try this address.
+			(newto, topic) = text.parse_delimiter(to)
+			if newto in keys.values():
+				gpg_to.append((to, newto))
 
 		# Check if there is a default key for the domain
 		splitted_to = to.split('@')
 		if len(splitted_to) > 1:
 			domain = splitted_to[1]
 			if conf.config_item_set('enc_domain_keymap', domain):
-				LOG.info("Encrypt domain keymap has key '%s'" % conf.get_item('enc_dec_keymap', domain) )
+				LOG.info("Encrypt domain keymap has key '%s'" % conf.get_item('enc_domain_keymap', domain) )
 				# Check we've got a matching key!
 				if conf.get_item('enc_domain_keymap', domain) in keys:
 					LOG.info("Using default domain key for recipient '%s'" % to)
@@ -315,26 +328,29 @@ def smime_encrypt( raw_message, recipients ):
 def get_cert_for_email( to_addr, cert_path ):
 	global LOG
 
+	insensitive = conf.config_item_equals('default', 'mail_case_insensitive', 'yes')
+
 	files_in_directory = os.listdir(cert_path)
 	for filename in files_in_directory:
 		file_path = os.path.join(cert_path, filename)
 		if not os.path.isfile(file_path):
 			continue
 
-		if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
-			if filename.lower() == to_addr:
+		if insensitive:
+			if filename.casefold() == to_addr:
 				return (file_path, to_addr)
 		else:
 			if filename == to_addr:
 				return (file_path, to_addr)
-	# support foo+ignore@bar.com -> foo@bar.com
-	multi_email = re.match('^([^\+]+)\+([^@]+)@(.*)$', to_addr)
-	if multi_email:
-		fixed_up_email = "%s@%s" % (multi_email.group(1), multi_email.group(3))
-		LOG.debug("Multi-email %s converted to %s" % (to_addr, fixed_up_email))
-		return get_cert_for_email(fixed_up_email)
 
-	return None
+	# support foo+ignore@bar.com -> foo@bar.com
+	(fixed_up_email, topic) = text.parse_delimiter(to_addr)
+	if topic is None:
+		# delimiter not used
+		return None
+	else:
+		LOG.debug(f"Looking up certificate for {fixed_up_email} after parsing {to_addr}")
+		return get_cert_for_email(fixed_up_email, cert_path)
 
 def sanitize_case_sense( address ):
 	if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):

@@ -1,4 +1,5 @@
 import sys
+import re
 
 # The standard way to encode line-ending in email:
 EOL = "\r\n"
@@ -21,6 +22,13 @@ def parse_content_type(content_type):
 		return (ctype, encoding[0][eq_idx+1:])
 	else:
 		return (ctype, sys.getdefaultencoding())
+
+def parse_delimiter(address):
+	withdelim = re.match('^([^\+]+)\+([^@]+)@(.*)$', address)
+	if withdelim:
+		return (withdelim.group(1) + '@' + withdelim.group(3), withdelim.group(2))
+	else:
+		return (address, None)
 
 def is_pgp_inline(payload):
 	"""Finds out if the payload (bytes) contains PGP/INLINE markers."""
