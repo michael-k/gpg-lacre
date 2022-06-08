@@ -59,8 +59,14 @@ def gpg_encrypt( raw_message, recipients ):
 	for fingerprint in keys:
 		keys[fingerprint] = sanitize_case_sense(keys[fingerprint])
 
+	# This list will be filled with pairs (M, N), where M is the destination
+	# address we're going to deliver the message to and N is the identity we're
+	# going to encrypt it for.
 	gpg_to = list()
+
 	ungpg_to = list()
+
+	enc_keymap_only = conf.config_item_equals('default', 'enc_keymap_only', 'yes')
 
 	for to in recipients:
 
@@ -75,16 +81,23 @@ def gpg_encrypt( raw_message, recipients ):
 				LOG.info("Key '%s' in encrypt keymap not found in keyring for email address '%s'." % (conf.get_item('enc_keymap', to), to))
 
 		# Check if key in keychain is present
-		if to in keys.values() and not conf.config_item_equals('default', 'enc_keymap_only', 'yes'):
-			gpg_to.append( (to, to) )
-			continue
+		if not enc_keymap_only:
+			if to in keys.values():
+				gpg_to.append( (to, to) )
+				continue
+
+            # If this is an address with a delimiter (i.e. "foo+bar@example.com"),
+            # then strip whatever is found after the delimiter and try this address.
+			(newto, topic) = text.parse_delimiter(to)
+			if newto in keys.values():
+				gpg_to.append((to, newto))
 
 		# Check if there is a default key for the domain
 		splitted_to = to.split('@')
 		if len(splitted_to) > 1:
 			domain = splitted_to[1]
 			if conf.config_item_set('enc_domain_keymap', domain):
-				LOG.info("Encrypt domain keymap has key '%s'" % conf.get_item('enc_dec_keymap', domain) )
+				LOG.info("Encrypt domain keymap has key '%s'" % conf.get_item('enc_domain_keymap', domain) )
 				# Check we've got a matching key!
 				if conf.get_item('enc_domain_keymap', domain) in keys:
 					LOG.info("Using default domain key for recipient '%s'" % to)
