@@ -34,6 +34,12 @@ FAIL_OVER_LOGGING_CONFIG = {
 	}
 }
 
+# Exit code taken from <sysexits.h>:
+EX_UNAVAILABLE = 69
+EX_TEMPFAIL = 75
+EX_CONFIG = 78
+
+
 def init_logging(config_filename):
 	if config_filename is not None:
 		logging.config.fileConfig(config_filename)
