@@ -19,30 +19,12 @@
 #	along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from configparser import RawConfigParser
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-import copy
 import email
-import email.message
-import email.utils
-import GnuPG
-import os
-import re
-import smtplib
 import sys
-import syslog
-import traceback
 import time
-
-
-# imports for S/MIME
-from M2Crypto import BIO, Rand, SMIME, X509
-from email.mime.message import MIMEMessage
-
 import logging
+
 import lacre
-import lacre.text as text
 import lacre.config as conf
 import lacre.mailgate as mailgate
 
@@ -65,7 +47,7 @@ from_addr = raw_message['From']
 to_addrs = sys.argv[1:]
 
 # Let's start
-mailgate.sort_recipients(raw_message, from_addr, to_addrs)
+mailgate.deliver_message(raw_message, from_addr, to_addrs)
 (elapsed_s, process_t) = mailgate.exec_time_info(start)
 
 LOG.info("Elapsed-time: {elapsed:.2f}s; Process-time: {process:.4f}s".format(elapsed=elapsed_s, process=process_t))

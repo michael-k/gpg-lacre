@@ -394,7 +394,7 @@ def send_msg( message, recipients ):
 	else:
 		LOG.info("No recipient found")
 
-def sort_recipients( raw_message, from_address, to_addrs ):
+def deliver_message( raw_message, from_address, to_addrs ):
 	global LOG
 	global from_addr
 
