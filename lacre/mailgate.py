@@ -17,7 +17,6 @@
 #	along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from configparser import RawConfigParser
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 import copy
@@ -84,8 +83,8 @@ def gpg_encrypt( raw_message, recipients ):
 				gpg_to.append( (to, to) )
 				continue
 
-            # If this is an address with a delimiter (i.e. "foo+bar@example.com"),
-            # then strip whatever is found after the delimiter and try this address.
+			# If this is an address with a delimiter (i.e. "foo+bar@example.com"),
+			# then strip whatever is found after the delimiter and try this address.
 			(newto, topic) = text.parse_delimiter(to)
 			if newto in keys.values():
 				gpg_to.append((to, newto))
@@ -394,6 +393,17 @@ def send_msg( message, recipients ):
 	else:
 		LOG.info("No recipient found")
 
+def is_encrypted(raw_message):
+	if raw_message.get_content_type() == 'multipart/encrypted':
+		return True
+
+	first_part = get_first_payload(raw_message)
+	if first_part.get_content_type() == 'application/pkcs7-mime':
+		return True
+
+	first_payload = first_part.get_payload(decode=True)
+	return text.is_pgp_inline(first_payload)
+
 def deliver_message( raw_message, from_address, to_addrs ):
 	global LOG
 	global from_addr
@@ -404,19 +414,7 @@ def deliver_message( raw_message, from_address, to_addrs ):
 	recipients_left = [sanitize_case_sense(recipient) for recipient in to_addrs]
 
 	# There is no need for nested encryption
-	first_payload = get_first_payload(raw_message)
-	if first_payload.get_content_type() == 'application/pkcs7-mime':
-		LOG.debug("Message is already encrypted with S/MIME. Encryption aborted.")
-		send_msg(raw_message.as_string(), recipients_left)
-		return
-
-	first_payload = first_payload.get_payload(decode=True)
-	if text.is_pgp_inline(first_payload):
-		LOG.debug("Message is already encrypted as PGP/INLINE. Encryption aborted.")
-		send_msg(raw_message.as_string(), recipients_left)
-		return
-
-	if raw_message.get_content_type() == 'multipart/encrypted':
+	if is_encrypted(raw_message):
 		LOG.debug("Message is already encrypted. Encryption aborted.")
 		send_msg(raw_message.as_string(), recipients_left)
 		return
@@ -435,6 +433,6 @@ def deliver_message( raw_message, from_address, to_addrs ):
 	send_msg(raw_message.as_string(), recipients_left)
 
 def exec_time_info(start_timestamp):
-    elapsed_s = time.time() - start_timestamp
-    process_t = time.process_time()
-    return (elapsed_s, process_t)
+	elapsed_s = time.time() - start_timestamp
+	process_t = time.process_time()
+	return (elapsed_s, process_t)
