@@ -26,12 +26,13 @@ import logging
 
 import lacre
 import lacre.config as conf
-import lacre.mailgate as mailgate
-
 
 start = time.time()
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
+
+# This has to be executed *after* logging initialisation.
+import lacre.mailgate as mailgate
 
 LOG = logging.getLogger(__name__)
 

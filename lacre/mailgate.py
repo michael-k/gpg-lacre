@@ -46,8 +46,6 @@ import lacre.config as conf
 LOG = logging.getLogger(__name__)
 
 def gpg_encrypt( raw_message, recipients ):
-	global LOG
-
 	if not conf.config_item_set('gpg', 'keyhome'):
 		LOG.error("No valid entry for gpg keyhome. Encryption aborted.")
 		return recipients
@@ -237,8 +235,6 @@ def encrypt_all_payloads_mime( message, gpg_to_cmdline ):
 	return [ pgp_ver_part, encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested) ]
 
 def encrypt_payload( payload, gpg_to_cmdline, check_nested = True ):
-	global LOG
-
 	raw_payload = payload.get_payload(decode=True)
 	if check_nested and text.is_pgp_inline(raw_payload):
 		LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
@@ -324,8 +320,6 @@ def smime_encrypt( raw_message, recipients ):
 	return unsmime_to
 
 def get_cert_for_email( to_addr, cert_path ):
-	global LOG
-
 	insensitive = conf.config_item_equals('default', 'mail_case_insensitive', 'yes')
 
 	files_in_directory = os.listdir(cert_path)
@@ -379,7 +373,6 @@ def get_first_payload( payloads ):
 		return payloads
 
 def send_msg( message, recipients ):
-	global LOG
 	global from_addr
 
 	recipients = [_f for _f in recipients if _f]
@@ -405,7 +398,6 @@ def is_encrypted(raw_message):
 	return text.is_pgp_inline(first_payload)
 
 def deliver_message( raw_message, from_address, to_addrs ):
-	global LOG
 	global from_addr
 
 	# Ugly workaround to keep the code working without too many changes.
