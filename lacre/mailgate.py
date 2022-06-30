@@ -402,6 +402,12 @@ def _is_encrypted(raw_message):
     return text.is_pgp_inline(first_payload)
 
 
+def delivery_plan(recipients):
+    """Generate a sequence of pairs: a recipient and their delivery strategy."""
+    for recipient in recipients:
+        yield recipient, None
+
+
 def deliver_message(raw_message, from_address, to_addrs):
     """Send RAW_MESSAGE to all TO_ADDRS using the best encryption method available."""
     global from_addr
