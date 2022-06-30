@@ -378,7 +378,7 @@ def send_msg( message, recipients ):
 	recipients = [_f for _f in recipients if _f]
 	if recipients:
 		LOG.info(f"Sending email to: {recipients!r}")
-		relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'port')))
+		relay = conf.relay_params()
 		smtp = smtplib.SMTP(relay[0], relay[1])
 		if conf.config_item_equals('relay', 'starttls', 'yes'):
 			smtp.starttls()
