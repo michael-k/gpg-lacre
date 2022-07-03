@@ -34,6 +34,7 @@ from M2Crypto import BIO, SMIME, X509
 import logging
 import lacre.text as text
 import lacre.config as conf
+from lacre.mailop import KeepIntact
 
 
 LOG = logging.getLogger(__name__)
@@ -145,7 +146,7 @@ def _gpg_encrypt(raw_message, recipients):
             encrypted_payloads = _encrypt_all_payloads_mime(raw_message_mime, gpg_to_cmdline_mime)
             raw_message_mime.set_payload(encrypted_payloads)
 
-            _send_msg(raw_message_mime.as_string(), gpg_to_smtp_mime)
+            send_msg(raw_message_mime.as_string(), gpg_to_smtp_mime)
 
         if gpg_to_smtp_inline:
             # Encrypt mail with PGP/INLINE
@@ -162,7 +163,7 @@ def _gpg_encrypt(raw_message, recipients):
             encrypted_payloads = _encrypt_all_payloads_inline(raw_message_inline, gpg_to_cmdline_inline)
             raw_message_inline.set_payload(encrypted_payloads)
 
-            _send_msg(raw_message_inline.as_string(), gpg_to_smtp_inline)
+            send_msg(raw_message_inline.as_string(), gpg_to_smtp_inline)
 
     return ungpg_to
 
@@ -311,7 +312,7 @@ def _smime_encrypt(raw_message, recipients):
 
         LOG.debug(f"Sending message from {from_addr} to {smime_to}")
 
-        _send_msg(out.read(), smime_to)
+        send_msg(out.read(), smime_to)
     if unsmime_to:
         LOG.debug(f"Unable to find valid S/MIME certificates for {unsmime_to}")
 
@@ -375,7 +376,8 @@ def _get_first_payload(payloads):
         return payloads
 
 
-def _send_msg(message, recipients):
+def send_msg(message, recipients):
+    """Send MESSAGE to RECIPIENTS to the mail relay."""
     global from_addr
 
     recipients = [_f for _f in recipients if _f]
@@ -405,7 +407,7 @@ def _is_encrypted(raw_message):
 def delivery_plan(recipients):
     """Generate a sequence of pairs: a recipient and their delivery strategy."""
     for recipient in recipients:
-        yield recipient, None
+        yield recipient, KeepIntact(recipient)
 
 
 def deliver_message(raw_message, from_address, to_addrs):
@@ -420,7 +422,7 @@ def deliver_message(raw_message, from_address, to_addrs):
     # There is no need for nested encryption
     if _is_encrypted(raw_message):
         LOG.debug("Message is already encrypted. Encryption aborted.")
-        _send_msg(raw_message.as_string(), recipients_left)
+        send_msg(raw_message.as_string(), recipients_left)
         return
 
     # Encrypt mails for recipients with known public PGP keys
@@ -434,7 +436,7 @@ def deliver_message(raw_message, from_address, to_addrs):
         return
 
     # Send out mail to recipients which are left
-    _send_msg(raw_message.as_string(), recipients_left)
+    send_msg(raw_message.as_string(), recipients_left)
 
 
 def exec_time_info(start_timestamp):

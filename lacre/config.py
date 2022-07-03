@@ -16,7 +16,9 @@ CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
 # List of mandatory configuration parameters.  Each item on this list should be
 # a pair: a section name and a parameter name.
 MANDATORY_CONFIG_ITEMS = [("relay", "host"),
-                          ("relay", "port")]
+                          ("relay", "port"),
+                          ("daemon", "host"),
+                          ("daemon", "port")]
 
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in
@@ -99,3 +101,8 @@ def validate_config():
 def relay_params():
     """Return a (HOST, PORT) tuple identifying the mail relay."""
     return (cfg["relay"]["host"], int(cfg["relay"]["port"]))
+
+
+def daemon_params():
+    """Return a (HOST, PORT) tuple to setup a server socket for Lacre daemon."""
+    return (cfg["daemon"]["host"], int(cfg["daemon"]["port"]))

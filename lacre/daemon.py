@@ -3,6 +3,7 @@
 import logging
 import lacre
 import lacre.config as conf
+import sys
 from aiosmtpd.controller import Controller
 
 # Mail status constants.
@@ -28,19 +29,30 @@ class MailEncryptionProxy:
         """Accept a message and either encrypt it or forward as-is."""
         # for now, just return an error because we're not ready to handle mail
 
-        for r, s in gate.delivery_plan(envelope.rcpt_tos):
-            print(r)
+        for recipient, operation in gate.delivery_plan(envelope.rcpt_tos):
+            new_message = operation.perform(envelope.body)
+            gate.send_msg(new_message, [recipient])
 
         return RESULT_NOT_IMPLEMENTED
 
 
 def _init_controller():
     proxy = MailEncryptionProxy()
-    host, port = conf.relay_params()
+    host, port = conf.daemon_params()
     return Controller(proxy, hostname=host, port=port)
 
 
+def _validate_config():
+    missing = conf.validate_config()
+    if missing:
+        params = ", ".join([f"[{tup[0]}]{tup[1]}" for tup in missing])
+        LOG.error(f"Following mandatory parameters are missing: {params}")
+        sys.exit(lacre.EX_CONFIG)
+
+
 def _main():
+    _validate_config()
+
     controller = _init_controller()
 
     # starts the controller in a new thread
