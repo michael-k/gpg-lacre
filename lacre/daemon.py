@@ -5,6 +5,7 @@ import lacre
 import lacre.config as conf
 import sys
 from aiosmtpd.controller import Controller
+import asyncio
 
 # Mail status constants.
 #
@@ -30,8 +31,9 @@ class MailEncryptionProxy:
         # for now, just return an error because we're not ready to handle mail
 
         for recipient, operation in gate.delivery_plan(envelope.rcpt_tos):
-            new_message = operation.perform(envelope.body)
-            gate.send_msg(new_message, [recipient])
+            LOG.debug(f"Sending mail to {recipient} via {operation}")
+            new_message = operation.perform(envelope.content)
+            gate.send_msg(new_message, [recipient], envelope.mail_from)
 
         return RESULT_NOT_IMPLEMENTED
 
@@ -39,6 +41,7 @@ class MailEncryptionProxy:
 def _init_controller():
     proxy = MailEncryptionProxy()
     host, port = conf.daemon_params()
+    LOG.info(f"Initialising a mail Controller at {host}:{port}")
     return Controller(proxy, hostname=host, port=port)
 
 
@@ -50,18 +53,31 @@ def _validate_config():
         sys.exit(lacre.EX_CONFIG)
 
 
+async def _sleep():
+    while True:
+        await asyncio.sleep(5)
+
+
 def _main():
     _validate_config()
 
     controller = _init_controller()
 
+    LOG.info("Starting the daemon...")
     # starts the controller in a new thread
     controller.start()
 
     # _this_ thread now continues operation, so it may be used to control key
     # and certificate cache
 
+    try:
+        asyncio.run(_sleep())
+    except KeyboardInterrupt:
+        LOG.info("Finishing...")
+
     controller.stop()
+
+    LOG.info("Done")
 
 
 if __name__ == '__main__':

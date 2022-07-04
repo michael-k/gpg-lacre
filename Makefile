@@ -1,5 +1,5 @@
 .POSIX:
-.PHONY: test e2etest unittest crontest pre-clean clean restore-keyhome
+.PHONY: test e2etest unittest crontest daemontest pre-clean clean restore-keyhome
 
 #
 # On systems where Python 3.x binary has a different name, just
@@ -17,7 +17,7 @@ TEST_DB = test/lacre.db
 #
 # Main goal to run tests.
 #
-test: e2etest unittest crontest
+test: e2etest unittest crontest daemontest
 
 #
 # Run a set of end-to-end tests.
@@ -41,6 +41,14 @@ crontest: clean-db $(TEST_DB)
 
 $(TEST_DB):
 	$(PYTHON) test/schema.py $(TEST_DB)
+
+#
+# Run an e2e test of Advanced Content Filter.
+#
+daemontest:
+	$(PYTHON) test/relay.py 2500
+	PYTHONPATH=`pwd` $(PYTHON) -m lacre.daemon
+	$(PYTHON) test/sendmail.py
 
 # Before running the crontest goal we need to make sure that the
 # database gets regenerated.

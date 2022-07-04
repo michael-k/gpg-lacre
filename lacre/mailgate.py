@@ -376,9 +376,12 @@ def _get_first_payload(payloads):
         return payloads
 
 
-def send_msg(message, recipients):
+def send_msg(message, recipients, fromaddr=None):
     """Send MESSAGE to RECIPIENTS to the mail relay."""
     global from_addr
+
+    if fromaddr is not None:
+        from_addr = fromaddr
 
     recipients = [_f for _f in recipients if _f]
     if recipients:
