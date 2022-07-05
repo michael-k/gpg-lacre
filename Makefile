@@ -40,7 +40,7 @@ crontest: clean-db $(TEST_DB)
 	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd` $(PYTHON) gpg-mailgate-web/cron.py
 
 $(TEST_DB):
-	$(PYTHON) test/schema.py $(TEST_DB)
+	$(PYTHON) test/utils/schema.py $(TEST_DB)
 
 #
 # Run an e2e test of Advanced Content Filter.
@@ -59,7 +59,7 @@ clean-db:
 # Run unit tests
 #
 unittest:
-	$(PYTHON) -m unittest discover -s test
+	$(PYTHON) -m unittest discover -s test/modules
 
 pre-clean:
 	rm -fv test/gpg-mailgate.conf
