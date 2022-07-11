@@ -111,17 +111,17 @@ def _execute_e2e_test(case_name, config, config_path):
 
     logging.debug(f"Spawning relay: {relay_cmd}")
     relay_proc = subprocess.Popen(relay_cmd,
-                                  stdin = None,
-                                  stdout = subprocess.PIPE)
+                                  stdin=None,
+                                  stdout=subprocess.PIPE)
 
     logging.debug(f"Spawning GPG-Lacre: {gpglacre_cmd}, stdin = {config.get(case_name, 'in')}")
 
     # pass PATH because otherwise it would be dropped
     gpglacre_proc = subprocess.run(gpglacre_cmd,
-                                   input = _load_file(config.get(case_name, "in")),
-                                   capture_output = True,
-                                   env = {"GPG_MAILGATE_CONFIG": config_path,
-                                          "PATH": os.getenv("PATH")})
+                                   input=_load_file(config.get(case_name, "in")),
+                                   capture_output=True,
+                                   env={"GPG_MAILGATE_CONFIG": config_path,
+                                        "PATH": os.getenv("PATH")})
 
     # Let the relay process the data.
     relay_proc.wait()

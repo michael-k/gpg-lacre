@@ -46,9 +46,7 @@ $(TEST_DB):
 # Run an e2e test of Advanced Content Filter.
 #
 daemontest:
-	$(PYTHON) test/relay.py 2500
-	PYTHONPATH=`pwd` $(PYTHON) -m lacre.daemon
-	$(PYTHON) test/sendmail.py
+	$(PYTHON) test/daemon_test.py
 
 # Before running the crontest goal we need to make sure that the
 # database gets regenerated.
