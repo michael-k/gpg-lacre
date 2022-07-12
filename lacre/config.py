@@ -106,3 +106,8 @@ def relay_params():
 def daemon_params():
     """Return a (HOST, PORT) tuple to setup a server socket for Lacre daemon."""
     return (cfg["daemon"]["host"], int(cfg["daemon"]["port"]))
+
+
+def strict_mode():
+    """Check if Lacre is configured to support only a fixed list of keys."""
+    return ("default" in cfg and cfg["default"]["enc_keymap_only"] == "yes")
