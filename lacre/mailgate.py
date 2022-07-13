@@ -183,10 +183,12 @@ def _try_direct_key_lookup(recipient, keys, strict_mode):
         return None
 
     if recipient in keys.values():
+        LOG.info(f"Found key for {recipient}")
         return recipient, recipient
 
     (newto, topic) = text.parse_delimiter(recipient)
     if newto in keys.values():
+        LOG.info(f"Found key for {newto}, stripped {recipient}")
         return recipient, newto
 
     return None
