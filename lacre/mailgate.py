@@ -116,6 +116,7 @@ def _gpg_encrypt(raw_message, recipients):
 
 
 def _load_keys():
+    """Return a map from a key's fingerprint to email address."""
     keys = GnuPG.public_keys(conf.get_item('gpg', 'keyhome'))
     for fingerprint in keys:
         keys[fingerprint] = _sanitize_case_sense(keys[fingerprint])
@@ -133,55 +134,78 @@ def _sort_gpg_recipients(recipients):
     # public keys.
     ungpg_to = list()
 
+    # In "strict mode", only keys included in configuration are used to encrypt
+    # email.
     strict_mode = conf.strict_mode()
 
+    # GnuPG keys found in our keyring.
     keys = _load_keys()
 
     for to in recipients:
-
-        # Check if recipient is in keymap
-        if conf.config_item_set('enc_keymap', to):
-            own_key = conf.get_item('enc_keymap', to)
-            LOG.info(f"Encrypt keymap has key '{own_key}'")
-            # Check we've got a matching key!
-            if own_key in keys:
-                gpg_to.append((to, own_key))
-                continue
-            else:
-                LOG.info(f"Key '{own_key}' in encrypt keymap not found in keyring for email address '{to}'.")
-
-        # Check if key in keychain is present
-        if not strict_mode:
-            if to in keys.values():
-                gpg_to.append((to, to))
-                continue
-
-            # If this is an address with a delimiter (i.e. "foo+bar@example.com"),
-            # then strip whatever is found after the delimiter and try this address.
-            (newto, topic) = text.parse_delimiter(to)
-            if newto in keys.values():
-                gpg_to.append((to, newto))
-
-        # Check if there is a default key for the domain
-        splitted_to = to.split('@')
-        if len(splitted_to) > 1:
-            domain = splitted_to[1]
-            if conf.config_item_set('enc_domain_keymap', domain):
-                domain_key = conf.get_item('enc_domain_keymap', domain)
-                LOG.info(f"Encrypt domain keymap has key '{domain_key}'")
-                # Check we've got a matching key!
-                if domain_key in keys:
-                    LOG.info("Using default domain key for recipient '%s'" % to)
-                    gpg_to.append((to, domain_key))
-                    continue
-                else:
-                    LOG.info(f"Key '{domain_key}' in encrypt domain keymap not found in keyring for email address '{to}'.")
-
-        # At this point no key has been found
-        LOG.debug("Recipient (%s) not in PGP domain list for encrypting." % to)
-        ungpg_to.append(to)
+        key = _find_key(to, keys, strict_mode)
+        if key is not None:
+            gpg_to.append(key)
+        else:
+            ungpg_to.append(to)
 
     return gpg_to, ungpg_to
+
+
+def _find_key(recipient, keys, strict_mode):
+    own_key = _try_configured_key(recipient, keys)
+    if own_key is not None:
+        return own_key
+
+    direct_key = _try_direct_key_lookup(recipient, keys, strict_mode)
+    if direct_key is not None:
+        return direct_key
+
+    domain_key = _try_configured_domain_key(recipient, keys)
+    if domain_key is not None:
+        return domain_key
+
+    return None
+
+
+def _try_configured_key(recipient, keys):
+    if conf.config_item_set('enc_keymap', recipient):
+        key = conf.get_item('enc_keymap', recipient)
+        if key in keys:
+            LOG.debug(f"Found key {key} configured for {recipient}")
+            return (recipient, key)
+
+    LOG.debug(f"No configured key found for {recipient}")
+    return None
+
+
+def _try_direct_key_lookup(recipient, keys, strict_mode):
+    if strict_mode:
+        return None
+
+    if recipient in keys.values():
+        return recipient, recipient
+
+    (newto, topic) = text.parse_delimiter(recipient)
+    if newto in keys.values():
+        return recipient, newto
+
+    return None
+
+
+def _try_configured_domain_key(recipient, keys):
+    parts = recipient.split('@')
+    if len(parts) != 2:
+        return None
+
+    domain = parts[1]
+    if conf.config_item_set('enc_domain_keymap', domain):
+        domain_key = conf.get_item('enc_domain_keymap', domain)
+        if domain_key in keys:
+            LOG.debug(f"Found domain key {domain_key} for {recipient}")
+            return recipient, domain_key
+
+    LOG.debug(f"No domain key for {recipient}")
+    return None
 
 
 def _encrypt_all_payloads_inline(message, gpg_to_cmdline):
