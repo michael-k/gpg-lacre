@@ -47,6 +47,8 @@ def _gpg_encrypt(raw_message, recipients):
 
     gpg_to, ungpg_to = _sort_gpg_recipients(recipients)
 
+    LOG.info(f"Got addresses: gpg_to={gpg_to!r}, ungpg_to={ungpg_to!r}")
+
     if gpg_to:
         LOG.info("Encrypting email to: %s" % ' '.join(x[0] for x in gpg_to))
 
@@ -82,13 +84,7 @@ def _gpg_encrypt(raw_message, recipients):
             # Encrypt mail with PGP/MIME
             raw_message_mime = copy.deepcopy(raw_message)
 
-            if conf.config_item_equals('default', 'add_header', 'yes'):
-                raw_message_mime['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
-
-            if 'Content-Transfer-Encoding' in raw_message_mime:
-                raw_message_mime.replace_header('Content-Transfer-Encoding', '8BIT')
-            else:
-                raw_message_mime['Content-Transfer-Encoding'] = '8BIT'
+            _customise_headers(raw_message_mime)
 
             encrypted_payloads = _encrypt_all_payloads_mime(raw_message_mime, gpg_to_cmdline_mime)
             raw_message_mime.set_payload(encrypted_payloads)
@@ -99,20 +95,28 @@ def _gpg_encrypt(raw_message, recipients):
             # Encrypt mail with PGP/INLINE
             raw_message_inline = copy.deepcopy(raw_message)
 
-            if conf.config_item_equals('default', 'add_header', 'yes'):
-                raw_message_inline['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
-
-            if 'Content-Transfer-Encoding' in raw_message_inline:
-                raw_message_inline.replace_header('Content-Transfer-Encoding', '8BIT')
-            else:
-                raw_message_inline['Content-Transfer-Encoding'] = '8BIT'
+            _customise_headers(raw_message_inline)
 
             encrypted_payloads = _encrypt_all_payloads_inline(raw_message_inline, gpg_to_cmdline_inline)
             raw_message_inline.set_payload(encrypted_payloads)
 
             send_msg(raw_message_inline.as_string(), gpg_to_smtp_inline)
 
+    LOG.info(f"Not processed emails: {ungpg_to}")
     return ungpg_to
+
+
+def _customise_headers(message):
+    msg_copy = copy.deepcopy(message)
+    if conf.config_item_equals('default', 'add_header', 'yes'):
+        msg_copy['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
+
+    if 'Content-Transfer-Encoding' in msg_copy:
+        msg_copy.replace_header('Content-Transfer-Encoding', '8BIT')
+    else:
+        msg_copy['Content-Transfer-Encoding'] = '8BIT'
+
+    return
 
 
 def _load_keys():
@@ -122,6 +126,28 @@ def _load_keys():
         keys[fingerprint] = _sanitize_case_sense(keys[fingerprint])
 
     return keys
+
+
+class GpgRecipient:
+    """A tuple-like object that contains GPG recipient data."""
+
+    def __init__(self, left, right):
+        """Initialise a tuple-like object that contains GPG recipient data."""
+        self._left = left
+        self._right = right
+
+    def __getitem__(self, index):
+        """Pretend this object is a tuple by returning an indexed tuple element."""
+        if index == 0:
+            return self._left
+        elif index == 1:
+            return self._right
+        else:
+            raise IndexError()
+
+    def __repr__(self):
+        """Return textual representation of this GPG Recipient."""
+        return f"GpgRecipient({self._left!r}, {self._right!r})"
 
 
 def _sort_gpg_recipients(recipients):
@@ -141,12 +167,25 @@ def _sort_gpg_recipients(recipients):
     # GnuPG keys found in our keyring.
     keys = _load_keys()
 
+    LOG.info(f'Processisng recipients: {recipients!r}')
     for to in recipients:
-        key = _find_key(to, keys, strict_mode)
-        if key is not None:
-            gpg_to.append(key)
-        else:
-            ungpg_to.append(to)
+        LOG.info(f"At to={to!r}")
+        own_key = _try_configured_key(to, keys)
+        if own_key is not None:
+            gpg_to.append(GpgRecipient(own_key[0], own_key[1]))
+            continue
+
+        direct_key = _try_direct_key_lookup(to, keys, strict_mode)
+        if direct_key is not None:
+            gpg_to.append(GpgRecipient(direct_key[0], direct_key[1]))
+            continue
+
+        domain_key = _try_configured_domain_key(to, keys)
+        if domain_key is not None:
+            gpg_to.append(GpgRecipient(domain_key[0], domain_key[1]))
+            continue
+
+        ungpg_to.append((to, to))
 
     return gpg_to, ungpg_to
 
@@ -321,7 +360,7 @@ def _smime_encrypt(raw_message, recipients):
     unsmime_to = list()
 
     for addr in recipients:
-        cert_and_email = _get_cert_for_email(addr, cert_path)
+        cert_and_email = _get_cert_for_email(addr[0], cert_path)
 
         if not (cert_and_email is None):
             (to_cert, normal_email) = cert_and_email
@@ -364,6 +403,8 @@ def _smime_encrypt(raw_message, recipients):
 def _get_cert_for_email(to_addr, cert_path):
     insensitive = conf.config_item_equals('default', 'mail_case_insensitive', 'yes')
 
+    LOG.info(f'Retrieving certificate for {to_addr!r} from {cert_path!r}, sensitivity={insensitive!r}')
+
     files_in_directory = os.listdir(cert_path)
     for filename in files_in_directory:
         file_path = os.path.join(cert_path, filename)
@@ -378,12 +419,15 @@ def _get_cert_for_email(to_addr, cert_path):
                 return (file_path, to_addr)
 
     # support foo+ignore@bar.com -> foo@bar.com
+    LOG.info(f"An email with topic? {to_addr}")
     (fixed_up_email, topic) = text.parse_delimiter(to_addr)
+    LOG.info(f'Got {fixed_up_email!r} and {topic!r}')
     if topic is None:
         # delimiter not used
+        LOG.info('Topic not found')
         return None
     else:
-        LOG.debug(f"Looking up certificate for {fixed_up_email} after parsing {to_addr}")
+        LOG.info(f"Looking up certificate for {fixed_up_email} after parsing {to_addr}")
         return _get_cert_for_email(fixed_up_email, cert_path)
 
 
@@ -452,7 +496,7 @@ def _is_encrypted(raw_message):
 def delivery_plan(recipients):
     """Generate a sequence of pairs: a recipient and their delivery strategy."""
     for recipient in recipients:
-        yield recipient, KeepIntact(recipient)
+        yield KeepIntact(recipient)
 
 
 def deliver_message(raw_message, from_address, to_addrs):
@@ -465,22 +509,26 @@ def deliver_message(raw_message, from_address, to_addrs):
     recipients_left = [_sanitize_case_sense(recipient) for recipient in to_addrs]
 
     # There is no need for nested encryption
+    LOG.debug("Seeing if it's already encrypted")
     if _is_encrypted(raw_message):
         LOG.debug("Message is already encrypted. Encryption aborted.")
         send_msg(raw_message.as_string(), recipients_left)
         return
 
     # Encrypt mails for recipients with known public PGP keys
+    LOG.debug("Encrypting with OpenPGP")
     recipients_left = _gpg_encrypt(raw_message, recipients_left)
     if not recipients_left:
         return
 
     # Encrypt mails for recipients with known S/MIME certificate
+    LOG.debug("Encrypting with S/MIME")
     recipients_left = _smime_encrypt(raw_message, recipients_left)
     if not recipients_left:
         return
 
     # Send out mail to recipients which are left
+    LOG.debug("Sending the rest as text/plain")
     send_msg(raw_message.as_string(), recipients_left)
 
 

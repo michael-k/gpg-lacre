@@ -30,10 +30,10 @@ class MailEncryptionProxy:
         """Accept a message and either encrypt it or forward as-is."""
         # for now, just return an error because we're not ready to handle mail
 
-        for recipient, operation in gate.delivery_plan(envelope.rcpt_tos):
-            LOG.debug(f"Sending mail to {recipient} via {operation}")
+        for operation in gate.delivery_plan(envelope.rcpt_tos):
+            LOG.debug(f"Sending mail via {operation}")
             new_message = operation.perform(envelope.content)
-            gate.send_msg(new_message, [recipient], envelope.mail_from)
+            gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
 
         return RESULT_NOT_IMPLEMENTED
 
@@ -48,9 +48,13 @@ def _init_controller():
 def _validate_config():
     missing = conf.validate_config()
     if missing:
-        params = ", ".join([f"[{tup[0]}]{tup[1]}" for tup in missing])
+        params = ", ".join([_full_param_name(tup) for tup in missing])
         LOG.error(f"Following mandatory parameters are missing: {params}")
         sys.exit(lacre.EX_CONFIG)
+
+
+def _full_param_name(tup):
+    return f"[{tup[0]}]{tup[1]}"
 
 
 async def _sleep():

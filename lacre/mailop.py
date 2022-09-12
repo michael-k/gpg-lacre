@@ -23,9 +23,9 @@ LOG = logging.getLogger(__name__)
 class MailOperation:
     """Contract for an operation to be performed on a message."""
 
-    def __init__(self, recipient):
+    def __init__(self, recipients=[]):
         """Initialise the operation with a recipient."""
-        self._recipient = recipient
+        self._recipients = recipients
 
     def perform(self, message):
         """Perform this operation on MESSAGE.
@@ -34,9 +34,13 @@ class MailOperation:
         """
         raise NotImplementedError(self.__class__())
 
-    def recipient(self):
-        """Return recipient of the message."""
-        return self._recipient
+    def recipients(self):
+        """Return list of recipients of the message."""
+        return self._recipients
+
+    def add_recipient(self, recipient):
+        """Register another message recipient."""
+        self._recipients.append(recipient)
 
 
 class OpenPGPEncrypt(MailOperation):
