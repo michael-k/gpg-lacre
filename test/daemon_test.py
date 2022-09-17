@@ -82,7 +82,8 @@ def _execute_case(config, case_name):
     relay_mock = _spawn([python, "test/utils/relay.py", "2500"])
     time.sleep(1)                            # Wait for the relay to start up.
 
-    _send("localhost", 10025, "dave@disposlab", "alice@disposlab", "test/msgin/clear2rsa.msg")
+    _send("localhost", 10025, "dave@disposlab",
+          config.get(case_name, 'to'), config.get(case_name, 'in'))
 
     relay_mock.wait()
     (test_out, _) = relay_mock.communicate()
