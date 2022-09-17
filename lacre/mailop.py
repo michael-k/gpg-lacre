@@ -65,7 +65,7 @@ class OpenPGPEncrypt(MailOperation):
 
     def __repr__(self):
         """Generate a representation with just method and key."""
-        return f"<OpenPGP {self._recipient} {self._key}>"
+        return f"<OpenPGP {self._recipients} {self._key}>"
 
 
 class SMimeEncrypt(MailOperation):
@@ -79,12 +79,12 @@ class SMimeEncrypt(MailOperation):
 
     def perform(self, message):
         """Encrypt with a certificate."""
-        LOG.warning(f"Delivering clear-text to {self._recipient}")
+        LOG.warning(f"Delivering clear-text to {self._recipients}")
         return message
 
     def __repr__(self):
         """Generate a representation with just method and key."""
-        return f"<S/MIME {self._recipient}, {self._cert}>"
+        return f"<S/MIME {self._recipients}, {self._cert}>"
 
 
 class KeepIntact(MailOperation):
@@ -93,9 +93,9 @@ class KeepIntact(MailOperation):
     This operation should be used for mail that's already encrypted.
     """
 
-    def __init__(self, recipient):
+    def __init__(self, recipients):
         """Initialise pass-through operation for a given recipient."""
-        super().__init__(recipient)
+        super().__init__(recipients)
 
     def perform(self, message):
         """Return MESSAGE unmodified."""
@@ -103,4 +103,4 @@ class KeepIntact(MailOperation):
 
     def __repr__(self):
         """Return representation with just method and email."""
-        return f"<KeepIntact {self._recipient}>"
+        return f"<KeepIntact {self._recipients}>"
