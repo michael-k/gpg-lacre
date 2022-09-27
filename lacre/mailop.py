@@ -14,7 +14,7 @@ There are 3 operations available:
 """
 
 import logging
-import GnuPG
+import lacre.mailgate as mailgate
 
 
 LOG = logging.getLogger(__name__)
@@ -52,20 +52,41 @@ class OpenPGPEncrypt(MailOperation):
         self._key = key
         self._keyhome = keyhome
 
-    def perform(self, message):
-        """Encrypt MESSAGE with the given key."""
-        enc = GnuPG.GPGEncryptor(self._keyhome)
-        enc.update(message)
-        encrypted, err = enc.encrypt()
-        if err:
-            LOG.error(f"Unable to encrypt message, delivering cleartext (gpg exit code: {err})")
-            return message
-        else:
-            return encrypted
+    def extend_keys(self, keys):
+        """Register GPG keys to encrypt this message for."""
+        self._keys.extend(keys)
 
     def __repr__(self):
         """Generate a representation with just method and key."""
-        return f"<OpenPGP {self._recipients} {self._key}>"
+        return f"<{type(self).__name__} {self._recipients} {self._key}>"
+
+
+class InlineOpenPGPEncrypt(OpenPGPEncrypt):
+    """Inline encryption strategy."""
+
+    def perform(self, msg):
+        """Encrypt with PGP Inline."""
+        LOG.debug('Sending PGP/Inline...')
+        return mailgate._gpg_encrypt_and_return(msg,
+                                                self._keys, self._recipients,
+                                                mailgate._encrypt_all_payloads_inline)
+
+
+class MimeOpenPGPEncrypt(OpenPGPEncrypt):
+    """MIME encryption strategy."""
+
+    def __init__(self, recipients, keys, keyhome):
+        """Initialise strategy object."""
+        super().__init__(recipients)
+        self._keys = keys
+        self._keyhome = keyhome
+
+    def perform(self, msg):
+        """Encrypt with PGP MIME."""
+        LOG.debug('Sending PGP/MIME...')
+        return mailgate._gpg_encrypt_and_return(msg,
+                                                self._keys, self._recipients,
+                                                mailgate._encrypt_all_payloads_mime)
 
 
 class SMimeEncrypt(MailOperation):

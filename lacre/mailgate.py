@@ -34,7 +34,7 @@ from M2Crypto import BIO, SMIME, X509
 import logging
 import lacre.text as text
 import lacre.config as conf
-from lacre.mailop import KeepIntact, OpenPGPEncrypt
+from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt
 
 
 LOG = logging.getLogger(__name__)
@@ -93,26 +93,31 @@ def _sort_gpg_recipients(gpg_to):
             gpg_to_cmdline_inline.extend(rcpt.key().split(','))
         else:
             # Log message only if an unknown style is defined
-            if conf.config_item_set('pgp_style', rcpt[0]):
-                LOG.debug("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt[0]), rcpt[0]))
+            if conf.config_item_set('pgp_style', rcpt.email()):
+                LOG.debug("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt.email()), rcpt.email()))
 
             # If no style is in settings defined for recipient, use default from settings
             if default_to_pgp_mime:
-                gpg_to_smtp_mime.append(rcpt[0])
-                gpg_to_cmdline_mime.extend(rcpt[1].split(','))
+                gpg_to_smtp_mime.append(rcpt.email())
+                gpg_to_cmdline_mime.extend(rcpt.key().split(','))
             else:
-                gpg_to_smtp_inline.append(rcpt[0])
-                gpg_to_cmdline_inline.extend(rcpt[1].split(','))
+                gpg_to_smtp_inline.append(rcpt.email())
+                gpg_to_cmdline_inline.extend(rcpt.key().split(','))
 
     return gpg_to_smtp_mime, gpg_to_cmdline_mime, gpg_to_smtp_inline, gpg_to_cmdline_inline
 
 
-def _gpg_encrypt_and_deliver(message, cmdline, to, encrypt_f):
+def _gpg_encrypt_and_return(message, cmdline, to, encrypt_f):
     msg_copy = copy.deepcopy(message)
     _customise_headers(msg_copy)
     encrypted_payloads = encrypt_f(msg_copy, cmdline)
     msg_copy.set_payload(encrypted_payloads)
-    send_msg(msg_copy.as_string(), to)
+    return msg_copy.as_string()
+
+
+def _gpg_encrypt_and_deliver(message, cmdline, to, encrypt_f):
+    out = _gpg_encrypt_and_return(message, cmdline, to, encrypt_f)
+    send_msg(out, to)
 
 
 def _customise_headers(msg_copy):
@@ -179,7 +184,7 @@ def _identify_gpg_recipients(recipients):
     # GnuPG keys found in our keyring.
     keys = _load_keys()
 
-    LOG.info(f'Processisng recipients: {recipients!r}')
+    LOG.info(f'Processisng recipients: {recipients!r}; keys: {keys!r}')
     for to in recipients:
         LOG.info(f"At to={to!r}")
         own_key = _try_configured_key(to, keys)
@@ -515,8 +520,8 @@ def delivery_plan(recipients):
 
     keyhome = conf.get_item('gpg', 'keyhome')
 
-    return [OpenPGPEncrypt(gpg_mime_to, gpg_mime_cmd, keyhome),
-            OpenPGPEncrypt(gpg_inline_to, gpg_inline_cmd, keyhome),
+    return [MimeOpenPGPEncrypt(gpg_mime_to, gpg_mime_cmd, keyhome),
+            InlineOpenPGPEncrypt(gpg_inline_to, gpg_inline_cmd, keyhome),
             KeepIntact(ungpg_to)]
 
 
