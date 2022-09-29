@@ -15,6 +15,7 @@ There are 3 operations available:
 
 import logging
 import lacre.mailgate as mailgate
+from email.message import Message
 
 
 LOG = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ class MailOperation:
         """Initialise the operation with a recipient."""
         self._recipients = recipients
 
-    def perform(self, message):
+    def perform(self, message: Message):
         """Perform this operation on MESSAGE.
 
         Return target message.
@@ -46,10 +47,10 @@ class MailOperation:
 class OpenPGPEncrypt(MailOperation):
     """OpenPGP-encrypt the message."""
 
-    def __init__(self, recipient, key, keyhome):
+    def __init__(self, recipients, keys, keyhome):
         """Initialise encryption operation."""
-        super().__init__(recipient)
-        self._key = key
+        super().__init__(recipients)
+        self._keys = keys
         self._keyhome = keyhome
 
     def extend_keys(self, keys):
@@ -58,13 +59,17 @@ class OpenPGPEncrypt(MailOperation):
 
     def __repr__(self):
         """Generate a representation with just method and key."""
-        return f"<{type(self).__name__} {self._recipients} {self._key}>"
+        return f"<{type(self).__name__} {self._recipients} {self._keys}>"
 
 
 class InlineOpenPGPEncrypt(OpenPGPEncrypt):
     """Inline encryption strategy."""
 
-    def perform(self, msg):
+    def __init__(self, recipients, keys, keyhome):
+        """Initialise strategy object."""
+        super().__init__(recipients, keys, keyhome)
+
+    def perform(self, msg: Message):
         """Encrypt with PGP Inline."""
         LOG.debug('Sending PGP/Inline...')
         return mailgate._gpg_encrypt_and_return(msg,
@@ -77,11 +82,9 @@ class MimeOpenPGPEncrypt(OpenPGPEncrypt):
 
     def __init__(self, recipients, keys, keyhome):
         """Initialise strategy object."""
-        super().__init__(recipients)
-        self._keys = keys
-        self._keyhome = keyhome
+        super().__init__(recipients, keys, keyhome)
 
-    def perform(self, msg):
+    def perform(self, msg: Message):
         """Encrypt with PGP MIME."""
         LOG.debug('Sending PGP/MIME...')
         return mailgate._gpg_encrypt_and_return(msg,
@@ -98,7 +101,7 @@ class SMimeEncrypt(MailOperation):
         self._email = email
         self._cert = certificate
 
-    def perform(self, message):
+    def perform(self, message: Message):
         """Encrypt with a certificate."""
         LOG.warning(f"Delivering clear-text to {self._recipients}")
         return message
@@ -118,9 +121,9 @@ class KeepIntact(MailOperation):
         """Initialise pass-through operation for a given recipient."""
         super().__init__(recipients)
 
-    def perform(self, message):
+    def perform(self, message: Message):
         """Return MESSAGE unmodified."""
-        return message
+        return message.as_string()
 
     def __repr__(self):
         """Return representation with just method and email."""

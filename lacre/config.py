@@ -81,6 +81,10 @@ def config_item_equals(section, key, value) -> bool:
     return section in cfg and key in cfg[section] and cfg[section][key] == value
 
 
+def flag_enabled(section, key) -> bool:
+    return config_item_equals(section, key, 'yes')
+
+
 def validate_config():
     """Check if configuration is complete.
 

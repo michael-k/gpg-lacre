@@ -107,7 +107,7 @@ def _sort_gpg_recipients(gpg_to):
     return gpg_to_smtp_mime, gpg_to_cmdline_mime, gpg_to_smtp_inline, gpg_to_cmdline_inline
 
 
-def _gpg_encrypt_and_return(message, cmdline, to, encrypt_f):
+def _gpg_encrypt_and_return(message, cmdline, to, encrypt_f) -> str:
     msg_copy = copy.deepcopy(message)
     _customise_headers(msg_copy)
     encrypted_payloads = encrypt_f(msg_copy, cmdline)
@@ -202,7 +202,7 @@ def _identify_gpg_recipients(recipients):
             gpg_to.append(GpgRecipient(domain_key[0], domain_key[1]))
             continue
 
-        ungpg_to.append((to, to))
+        ungpg_to.append(to)
 
     LOG.debug(f'Collected recipients;  GPG: {gpg_to};  UnGPG: {ungpg_to}')
     return gpg_to, ungpg_to
@@ -480,7 +480,7 @@ def _get_first_payload(payloads):
         return payloads
 
 
-def send_msg(message, recipients, fromaddr=None):
+def send_msg(message: str, recipients, fromaddr=None):
     """Send MESSAGE to RECIPIENTS to the mail relay."""
     global from_addr
 
@@ -492,7 +492,7 @@ def send_msg(message, recipients, fromaddr=None):
         LOG.info(f"Sending email to: {recipients!r}")
         relay = conf.relay_params()
         smtp = smtplib.SMTP(relay[0], relay[1])
-        if conf.config_item_equals('relay', 'starttls', 'yes'):
+        if conf.flag_enabled('relay', 'starttls'):
             smtp.starttls()
         smtp.sendmail(from_addr, recipients, message)
     else:
@@ -520,12 +520,18 @@ def delivery_plan(recipients):
 
     keyhome = conf.get_item('gpg', 'keyhome')
 
-    return [MimeOpenPGPEncrypt(gpg_mime_to, gpg_mime_cmd, keyhome),
-            InlineOpenPGPEncrypt(gpg_inline_to, gpg_inline_cmd, keyhome),
-            KeepIntact(ungpg_to)]
+    plan = []
+    if gpg_mime_to:
+        plan.append(MimeOpenPGPEncrypt(gpg_mime_to, gpg_mime_cmd, keyhome))
+    if gpg_inline_to:
+        plan.append(InlineOpenPGPEncrypt(gpg_inline_to, gpg_inline_cmd, keyhome))
+    if ungpg_to:
+        plan.append(KeepIntact(ungpg_to))
+
+    return plan
 
 
-def deliver_message(raw_message, from_address, to_addrs):
+def deliver_message(raw_message: email.message.Message, from_address, to_addrs):
     """Send RAW_MESSAGE to all TO_ADDRS using the best encryption method available."""
     global from_addr
 

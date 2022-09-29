@@ -5,7 +5,9 @@ import lacre
 import lacre.config as conf
 import sys
 from aiosmtpd.controller import Controller
+from aiosmtpd.smtp import Envelope
 import asyncio
+import email
 
 # Mail status constants.
 #
@@ -26,14 +28,17 @@ import lacre.mailgate as gate
 class MailEncryptionProxy:
     """A mail handler dispatching to appropriate mail operation."""
 
-    async def handle_DATA(self, server, session, envelope):
+    async def handle_DATA(self, server, session, envelope: Envelope):
         """Accept a message and either encrypt it or forward as-is."""
-        # for now, just return an error because we're not ready to handle mail
-
-        for operation in gate.delivery_plan(envelope.rcpt_tos):
-            LOG.debug(f"Sending mail via {operation}")
-            new_message = operation.perform(envelope.content)
-            gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
+        try:
+            message = email.message_from_bytes(envelope.content)
+            for operation in gate.delivery_plan(envelope.rcpt_tos):
+                LOG.debug(f"Sending mail via {operation!r}")
+                new_message = operation.perform(message)
+                gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
+        except TypeError as te:
+            LOG.exception("Got exception while processing", exc_info=te)
+            return RESULT_ERROR
 
         return RESULT_NOT_IMPLEMENTED
 
