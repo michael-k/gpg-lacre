@@ -17,7 +17,7 @@ TEST_DB = test/lacre.db
 #
 # Main goal to run tests.
 #
-test: e2etest unittest crontest daemontest
+test: e2etest unittest daemontest crontest
 
 #
 # Run a set of end-to-end tests.
