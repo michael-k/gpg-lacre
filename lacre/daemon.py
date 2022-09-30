@@ -3,6 +3,7 @@
 import logging
 import lacre
 import lacre.config as conf
+import lacre.keycache as kcache
 import sys
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
@@ -28,11 +29,15 @@ import lacre.mailgate as gate
 class MailEncryptionProxy:
     """A mail handler dispatching to appropriate mail operation."""
 
+    def __init__(self, keys: kcache.KeyCache):
+        """Initialise the mail proxy with a reference to the key cache."""
+        self._keys = keys
+
     async def handle_DATA(self, server, session, envelope: Envelope):
         """Accept a message and either encrypt it or forward as-is."""
         try:
             message = email.message_from_bytes(envelope.content)
-            for operation in gate.delivery_plan(envelope.rcpt_tos):
+            for operation in gate.delivery_plan(envelope.rcpt_tos, self._keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
                 gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
@@ -43,8 +48,8 @@ class MailEncryptionProxy:
         return RESULT_NOT_IMPLEMENTED
 
 
-def _init_controller():
-    proxy = MailEncryptionProxy()
+def _init_controller(keys: kcache.KeyCache):
+    proxy = MailEncryptionProxy(keys)
     host, port = conf.daemon_params()
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
     return Controller(proxy, hostname=host, port=port)
@@ -70,7 +75,9 @@ async def _sleep():
 def _main():
     _validate_config()
 
-    controller = _init_controller()
+    keys = kcache.KeyCache()
+    keys.load_keyring(conf.get_item('gpg', 'keyhome'))
+    controller = _init_controller(keys)
 
     LOG.info("Starting the daemon...")
     # starts the controller in a new thread

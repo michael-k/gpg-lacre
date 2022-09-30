@@ -34,6 +34,7 @@ from M2Crypto import BIO, SMIME, X509
 import logging
 import lacre.text as text
 import lacre.config as conf
+import lacre.keycache as kcache
 from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt
 
 
@@ -45,9 +46,7 @@ def _gpg_encrypt(raw_message, recipients):
         LOG.error("No valid entry for gpg keyhome. Encryption aborted.")
         return recipients
 
-    # TODO: gpg_to contains objects, not tuples, so we need to access them
-    # appropriately
-    gpg_to, ungpg_to = _identify_gpg_recipients(recipients)
+    gpg_to, ungpg_to = _identify_gpg_recipients(recipients, _load_keys())
 
     LOG.info(f"Got addresses: gpg_to={gpg_to!r}, ungpg_to={ungpg_to!r}")
 
@@ -132,10 +131,8 @@ def _customise_headers(msg_copy):
 
 def _load_keys():
     """Return a map from a key's fingerprint to email address."""
-    keys = GnuPG.public_keys(conf.get_item('gpg', 'keyhome'))
-    for fingerprint in keys:
-        keys[fingerprint] = _sanitize_case_sense(keys[fingerprint])
-
+    keys = kcache.KeyCache()
+    keys.load_keyring(conf.get_item('gpg', 'keyhome'))
     return keys
 
 
@@ -167,7 +164,7 @@ class GpgRecipient:
         return self._right
 
 
-def _identify_gpg_recipients(recipients):
+def _identify_gpg_recipients(recipients, keys: kcache.KeyCache):
     # This list will be filled with pairs (M, N), where M is the destination
     # address we're going to deliver the message to and N is the identity we're
     # going to encrypt it for.
@@ -182,7 +179,6 @@ def _identify_gpg_recipients(recipients):
     strict_mode = conf.strict_mode()
 
     # GnuPG keys found in our keyring.
-    keys = _load_keys()
 
     LOG.info(f'Processisng recipients: {recipients!r}; keys: {keys!r}')
     for to in recipients:
@@ -239,12 +235,12 @@ def _try_direct_key_lookup(recipient, keys, strict_mode):
     if strict_mode:
         return None
 
-    if recipient in keys.values():
+    if keys.has_email(recipient):
         LOG.info(f"Found key for {recipient}")
         return recipient, recipient
 
     (newto, topic) = text.parse_delimiter(recipient)
-    if newto in keys.values():
+    if keys.has_email(newto):
         LOG.info(f"Found key for {newto}, stripped {recipient}")
         return recipient, newto
 
@@ -449,17 +445,6 @@ def _get_cert_for_email(to_addr, cert_path):
         return _get_cert_for_email(fixed_up_email, cert_path)
 
 
-def _sanitize_case_sense(address):
-    if conf.config_item_equals('default', 'mail_case_insensitive', 'yes'):
-        address = address.lower()
-    else:
-        splitted_address = address.split('@')
-        if len(splitted_address) > 1:
-            address = splitted_address[0] + '@' + splitted_address[1].lower()
-
-    return address
-
-
 def _generate_message_from_payloads(payloads, message=None):
     if message is None:
         message = email.mime.multipart.MIMEMultipart(payloads.get_content_subtype())
@@ -511,9 +496,9 @@ def _is_encrypted(raw_message):
     return text.is_pgp_inline(first_payload)
 
 
-def delivery_plan(recipients):
+def delivery_plan(recipients, key_cache: kcache.KeyCache):
     """Generate a sequence of delivery strategies."""
-    gpg_to, ungpg_to = _identify_gpg_recipients(recipients)
+    gpg_to, ungpg_to = _identify_gpg_recipients(recipients, key_cache)
 
     gpg_mime_to, gpg_mime_cmd, gpg_inline_to, gpg_inline_cmd = \
         _sort_gpg_recipients(gpg_to)
@@ -538,7 +523,7 @@ def deliver_message(raw_message: email.message.Message, from_address, to_addrs):
     # Ugly workaround to keep the code working without too many changes.
     from_addr = from_address
 
-    recipients_left = [_sanitize_case_sense(recipient) for recipient in to_addrs]
+    recipients_left = [text.sanitize_case_sense(recipient) for recipient in to_addrs]
 
     # There is no need for nested encryption
     LOG.debug("Seeing if it's already encrypted")

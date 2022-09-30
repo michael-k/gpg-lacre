@@ -2,6 +2,8 @@ import sys
 import re
 import logging
 
+import lacre.config as conf
+
 # The standard way to encode line-ending in email:
 EOL = "\r\n"
 
@@ -45,6 +47,19 @@ def parse_delimiter(address: str):
         return (withdelim.group(1) + '@' + withdelim.group(3), withdelim.group(2))
     else:
         return (address, None)
+
+
+def sanitize_case_sense(address):
+    """Sanitize email case."""
+    # TODO: find a way to make it more unit-testable
+    if conf.flag_enabled('default', 'mail_case_insensitive'):
+        address = address.lower()
+    else:
+        splitted_address = address.split('@')
+        if len(splitted_address) > 1:
+            address = splitted_address[0] + '@' + splitted_address[1].lower()
+
+    return address
 
 
 def is_pgp_inline(payload) -> bool:
