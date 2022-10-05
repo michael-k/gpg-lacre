@@ -75,8 +75,8 @@ async def _sleep():
 def _main():
     _validate_config()
 
-    keys = kcache.KeyCache()
-    keys.load_keyring(conf.get_item('gpg', 'keyhome'))
+    keys = kcache.KeyCache(conf.get_item('gpg', 'keyhome'))
+    keys.load()
     controller = _init_controller(keys)
 
     LOG.info("Starting the daemon...")
