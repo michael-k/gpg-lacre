@@ -3,7 +3,6 @@
 import logging
 import lacre
 import lacre.config as conf
-import lacre.keycache as kcache
 import sys
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
@@ -24,6 +23,7 @@ lacre.init_logging(conf.get_item("logging", "config"))
 LOG = logging.getLogger(__name__)
 
 import lacre.mailgate as gate
+import lacre.keycache as kcache
 
 
 class MailEncryptionProxy:
@@ -48,11 +48,11 @@ class MailEncryptionProxy:
         return RESULT_NOT_IMPLEMENTED
 
 
-def _init_controller(keys: kcache.KeyCache):
+def _init_controller(keys: kcache.KeyCache, tout: float = 2.5):
     proxy = MailEncryptionProxy(keys)
     host, port = conf.daemon_params()
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
-    return Controller(proxy, hostname=host, port=port)
+    return Controller(proxy, hostname=host, port=port, ready_timeout=tout)
 
 
 def _validate_config():
@@ -67,27 +67,26 @@ def _full_param_name(tup):
     return f"[{tup[0]}]{tup[1]}"
 
 
-async def _sleep():
+async def _sleep(minutes, heartbeat_func):
     while True:
-        await asyncio.sleep(5)
+        await asyncio.sleep(minutes * 60)
+        heartbeat_func()
 
 
 def _main():
     _validate_config()
+
+    refresh_min = float(conf.get_item('gpg', 'cache_refresh_minutes', 2))
 
     keys = kcache.KeyCache(conf.get_item('gpg', 'keyhome'))
     keys.load()
     controller = _init_controller(keys)
 
     LOG.info("Starting the daemon...")
-    # starts the controller in a new thread
     controller.start()
 
-    # _this_ thread now continues operation, so it may be used to control key
-    # and certificate cache
-
     try:
-        asyncio.run(_sleep())
+        asyncio.run(_sleep(refresh_min, keys.load))
     except KeyboardInterrupt:
         LOG.info("Finishing...")
 

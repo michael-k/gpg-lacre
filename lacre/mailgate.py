@@ -132,7 +132,7 @@ def _customise_headers(msg_copy):
 def _load_keys():
     """Return a map from a key's fingerprint to email address."""
     keys = kcache.KeyCache()
-    keys.load_keyring(conf.get_item('gpg', 'keyhome'))
+    keys.load_keyring_from(conf.get_item('gpg', 'keyhome'))
     return keys
 
 

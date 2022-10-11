@@ -8,6 +8,10 @@ import GnuPG
 LOG = logging.getLogger(__name__)
 
 
+class KeyCacheMisconfiguration(Exception):
+    """Exception used to signal that KeyCache is misconfigured."""
+
+
 class KeyCache:
     """A store for OpenPGP keys.
 
@@ -44,11 +48,15 @@ class KeyCache:
 
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
+        LOG.debug('Reloading keys...')
+        if self._keyring_dir is None:
+            LOG.error('Keyringn directory not set!')
+            raise KeyCacheMisconfiguration("Keyring directory not configured")
         self.replace_keyring(self._load_keyring_from(self._keyring_dir))
 
     reload = load
 
-    def load_keyring(self, keyhome: str):
+    def load_keyring_from(self, keyhome: str):
         """Add all identities from keyring stored in KEYHOME."""
         self.extend_keyring(self._load_keyring_from(keyhome))
 
@@ -60,7 +68,7 @@ class KeyCache:
         for fingerprint in keys:
             keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
 
-        LOG.info(f'Loaded {len(keys)} keys')
+        LOG.info(f'Storing {len(keys)} keys')
         self._keys = keys
 
     def extend_keyring(self, keys: dict):
@@ -68,5 +76,5 @@ class KeyCache:
         for fingerprint in keys:
             keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
 
-        LOG.info(f'Loaded {len(keys)} keys')
+        LOG.info(f'Adding {len(keys)} keys')
         self._keys.update(keys)
