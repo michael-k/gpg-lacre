@@ -2,6 +2,7 @@
 
 import lacre.text as text
 import logging
+from os import stat
 
 import GnuPG
 
@@ -27,6 +28,7 @@ class KeyCache:
         """
         self._keys = dict()
         self._keyring_dir = keyring_dir
+        self._last_mod = None
 
     def __getitem__(self, fingerpring):
         """Look up email assigned to the given fingerprint."""
@@ -49,10 +51,16 @@ class KeyCache:
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
         LOG.debug('Reloading keys...')
+
         if self._keyring_dir is None:
             LOG.error('Keyringn directory not set!')
             raise KeyCacheMisconfiguration("Keyring directory not configured")
-        self.replace_keyring(self._load_keyring_from(self._keyring_dir))
+
+        last_mod = self._read_mod_time()
+        if self._is_modified(last_mod):
+            self.replace_keyring(self._load_keyring_from(self._keyring_dir))
+
+        self._last_mod = self._read_mod_time()
 
     reload = load
 
@@ -78,3 +86,20 @@ class KeyCache:
 
         LOG.info(f'Adding {len(keys)} keys')
         self._keys.update(keys)
+
+    def _is_modified(self, last_mod):
+        if self._last_mod is None:
+            LOG.debug('Keyring not loaded before')
+            return True
+        elif self._last_mod != last_mod:
+            LOG.debug('Keyring directory mtime changed')
+            return True
+        else:
+            LOG.debug('Keyring not modified ')
+            return False
+
+    def _read_mod_time(self):
+        # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
+        MTIME = 8
+        st = stat(self._keyring_dir)
+        return st[MTIME]
