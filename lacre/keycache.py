@@ -1,4 +1,8 @@
-"""A cache of OpenPGP keys known to Lacre."""
+"""A cache of OpenPGP keys known to Lacre.
+
+IMPORTANT: This module has to be loaded _after_ initialisation of the logging
+module.
+"""
 
 import lacre.text as text
 import logging

@@ -1,3 +1,9 @@
+"""Lacre's actual mail-delivery module.
+
+IMPORTANT: This module has to be loaded _after_ initialisation of the logging
+module.
+"""
+
 #
 # gpg-mailgate
 #
