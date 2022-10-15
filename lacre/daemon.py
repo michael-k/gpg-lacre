@@ -9,6 +9,7 @@ from aiosmtpd.smtp import Envelope
 import asyncio
 import email
 import time
+from watchdog.observers import Observer
 
 # Mail status constants.
 #
@@ -59,6 +60,13 @@ def _init_controller(keys: kcache.KeyCache, tout: float = 2.5):
     return Controller(proxy, hostname=host, port=port, ready_timeout=tout)
 
 
+def _init_reloader(keyring_dir: str, reloader) -> kcache.KeyringModificationListener:
+    listener = kcache.KeyringModificationListener(reloader)
+    observer = Observer()
+    observer.schedule(listener, keyring_dir, recursive=False)
+    return observer
+
+
 def _validate_config():
     missing = conf.validate_config()
     if missing:
@@ -71,10 +79,9 @@ def _full_param_name(tup):
     return f"[{tup[0]}]{tup[1]}"
 
 
-async def _sleep(minutes, heartbeat_func):
+async def _sleep(minutes):
     while True:
         await asyncio.sleep(minutes * 60)
-        heartbeat_func()
 
 
 def _main():
@@ -82,19 +89,27 @@ def _main():
 
     refresh_min = float(conf.get_item('gpg', 'cache_refresh_minutes', 2))
 
-    keys = kcache.KeyCache(conf.get_item('gpg', 'keyhome'))
+    keyring_path = conf.get_item('gpg', 'keyhome')
+    keys = kcache.KeyCache(keyring_path)
     keys.load()
     controller = _init_controller(keys)
+    reloader = _init_reloader(keyring_path, keys)
 
-    LOG.info("Starting the daemon...")
+    LOG.info(f'Watching keyring directory {keyring_path}...')
+    reloader.start()
+
+    LOG.info('Starting the daemon...')
     controller.start()
 
     try:
-        asyncio.run(_sleep(refresh_min, keys.load))
+        asyncio.run(_sleep(refresh_min))
     except KeyboardInterrupt:
         LOG.info("Finishing...")
-
-    controller.stop()
+    finally:
+        LOG.info('Shutting down keyring watcher and the daemon...')
+        reloader.stop()
+        reloader.join()
+        controller.stop()
 
     LOG.info("Done")
 

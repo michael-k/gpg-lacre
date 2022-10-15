@@ -7,6 +7,7 @@ module.
 import lacre.text as text
 import logging
 from os import stat
+from watchdog.events import FileSystemEventHandler
 
 import GnuPG
 
@@ -107,3 +108,21 @@ class KeyCache:
         MTIME = 8
         st = stat(self._keyring_dir)
         return st[MTIME]
+
+
+class KeyringModificationListener(FileSystemEventHandler):
+    """A filesystem event listener that triggers key cache reload."""
+
+    def __init__(self, cache: KeyCache):
+        """Initialise a listener with a callback to be executed upon each change."""
+        self._cache = cache
+
+    def handle(self, event):
+        """Reload keys upon FS event."""
+        LOG.debug(f'Reloading on event {event!r}')
+        self._cache.reload()
+
+    # All methods should do the same: reload the key cache.
+    # on_created = handle
+    # on_deleted = handle
+    on_modified = handle
