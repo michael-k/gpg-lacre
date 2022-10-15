@@ -99,7 +99,8 @@ def _sort_gpg_recipients(gpg_to):
         else:
             # Log message only if an unknown style is defined
             if conf.config_item_set('pgp_style', rcpt.email()):
-                LOG.debug("Style %s for recipient %s is not known. Use default as fallback." % (conf.get_item("pgp_style", rcpt.email()), rcpt.email()))
+                LOG.debug("Style %s for recipient %s is not known. Use default as fallback."
+                          % (conf.get_item("pgp_style", rcpt.email()), rcpt.email()))
 
             # If no style is in settings defined for recipient, use default from settings
             if default_to_pgp_mime:
@@ -164,9 +165,11 @@ class GpgRecipient:
         return f"GpgRecipient({self._left!r}, {self._right!r})"
 
     def email(self):
+        """Return this recipient's email address."""
         return self._left
 
     def key(self):
+        """Return this recipient's key ID."""
         return self._right
 
 
@@ -339,8 +342,10 @@ def _encrypt_payload(payload, gpg_to_cmdline, check_nested=True):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
         return payload
 
-    # No check is needed for conf.get_item('gpg', 'keyhome') as this is already done in method gpg_encrypt
-    gpg = GnuPG.GPGEncryptor(conf.get_item('gpg', 'keyhome'), gpg_to_cmdline, payload.get_content_charset())
+    # No check is needed for conf.get_item('gpg', 'keyhome') as this is already
+    # done in method gpg_encrypt
+    gpg = GnuPG.GPGEncryptor(conf.get_item('gpg', 'keyhome'), gpg_to_cmdline,
+                             payload.get_content_charset())
     gpg.update(raw_payload)
     encrypted_data, returncode = gpg.encrypt()
     LOG.debug("Return code from encryption=%d (0 indicates success)." % returncode)
