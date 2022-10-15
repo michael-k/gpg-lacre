@@ -8,6 +8,7 @@ from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
 import asyncio
 import email
+import time
 
 # Mail status constants.
 #
@@ -35,6 +36,7 @@ class MailEncryptionProxy:
 
     async def handle_DATA(self, server, session, envelope: Envelope):
         """Accept a message and either encrypt it or forward as-is."""
+        start = time.process_time()
         try:
             message = email.message_from_bytes(envelope.content)
             for operation in gate.delivery_plan(envelope.rcpt_tos, self._keys):
@@ -45,7 +47,9 @@ class MailEncryptionProxy:
             LOG.exception("Got exception while processing", exc_info=te)
             return RESULT_ERROR
 
-        return RESULT_NOT_IMPLEMENTED
+        ellapsed = time.process_time() - start
+        LOG.info(f'Message delivered in {ellapsed} ms')
+        return RESULT_OK
 
 
 def _init_controller(keys: kcache.KeyCache, tout: float = 2.5):
