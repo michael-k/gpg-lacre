@@ -25,7 +25,7 @@ lacre.init_logging(conf.get_item("logging", "config"))
 LOG = logging.getLogger(__name__)
 
 import lacre.mailgate as gate
-import lacre.keycache as kcache
+import lacre.keyring as kcache
 
 
 class MailEncryptionProxy:
@@ -53,7 +53,7 @@ class MailEncryptionProxy:
         return RESULT_OK
 
 
-def _init_controller(keys: kcache.KeyCache, tout: float = 2.5):
+def _init_controller(keys: kcache.KeyCache, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
     host, port = conf.daemon_params()
     LOG.info(f"Initialising a mail Controller at {host}:{port}")

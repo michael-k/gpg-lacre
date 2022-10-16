@@ -1,4 +1,4 @@
-"""A cache of OpenPGP keys known to Lacre.
+"""Data structures and utilities to make keyring access easier.
 
 IMPORTANT: This module has to be loaded _after_ initialisation of the logging
 module.

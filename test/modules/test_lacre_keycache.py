@@ -1,4 +1,4 @@
-from lacre.keycache import KeyCache
+from lacre.keyring import KeyCache
 
 import unittest
 

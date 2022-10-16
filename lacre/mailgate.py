@@ -40,7 +40,7 @@ from M2Crypto import BIO, SMIME, X509
 import logging
 import lacre.text as text
 import lacre.config as conf
-import lacre.keycache as kcache
+import lacre.keyring as kcache
 from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt
 
 
