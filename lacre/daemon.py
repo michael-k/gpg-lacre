@@ -80,15 +80,13 @@ def _full_param_name(tup):
     return f"[{tup[0]}]{tup[1]}"
 
 
-async def _sleep(minutes):
+async def _sleep():
     while True:
-        await asyncio.sleep(minutes * 60)
+        await asyncio.sleep(360)
 
 
 def _main():
     _validate_config()
-
-    refresh_min = float(conf.get_item('gpg', 'cache_refresh_minutes', 2))
 
     keyring_path = conf.get_item('gpg', 'keyhome')
     keyring = kcache.KeyRing(keyring_path)
@@ -102,7 +100,7 @@ def _main():
     controller.start()
 
     try:
-        asyncio.run(_sleep(refresh_min))
+        asyncio.run(_sleep())
     except KeyboardInterrupt:
         LOG.info("Finishing...")
     finally:

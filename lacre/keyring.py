@@ -8,7 +8,7 @@ import lacre.text as text
 import logging
 from os import stat
 from watchdog.events import FileSystemEventHandler
-from asyncio import Semaphore
+from asyncio import Semaphore, run
 import copy
 
 import GnuPG
@@ -92,7 +92,9 @@ class KeyRing:
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
         LOG.debug('Reloading keys...')
+        run(self._load())
 
+    async def _load(self):
         last_mod = self._read_mod_time()
         if self._is_modified(last_mod):
             async with self._sema:

@@ -51,14 +51,6 @@ dec_regex = None
 # i.e. have mode 700.
 keyhome = /var/gpgmailgate/.gnupg
 
-# Number of minutes between key cache refreshes.
-#
-# Lacre daemon keeps a cache of known keys to reduce number of OS processes
-# needed to perform a single email.  Keyring is going to be modified during
-# daemon's lifetime, so with this simple mechanism we ensure that new keys
-# will eventually be recognised and loaded.
-cache_refresh_minutes = 5
-
 [smime]
 # the directory for the S/MIME certificate files
 cert_path = /var/gpgmailgate/smime
