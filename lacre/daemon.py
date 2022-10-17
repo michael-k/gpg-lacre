@@ -31,16 +31,17 @@ import lacre.keyring as kcache
 class MailEncryptionProxy:
     """A mail handler dispatching to appropriate mail operation."""
 
-    def __init__(self, keys: kcache.KeyCache):
+    def __init__(self, keyring: kcache.KeyRing):
         """Initialise the mail proxy with a reference to the key cache."""
-        self._keys = keys
+        self._keyring = keyring
 
     async def handle_DATA(self, server, session, envelope: Envelope):
         """Accept a message and either encrypt it or forward as-is."""
         start = time.process_time()
         try:
+            keys = await self._keyring.freeze_identities()
             message = email.message_from_bytes(envelope.content)
-            for operation in gate.delivery_plan(envelope.rcpt_tos, self._keys):
+            for operation in gate.delivery_plan(envelope.rcpt_tos, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
                 gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
@@ -53,7 +54,7 @@ class MailEncryptionProxy:
         return RESULT_OK
 
 
-def _init_controller(keys: kcache.KeyCache, tout: float = 5):
+def _init_controller(keys: kcache.KeyRing, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
     host, port = conf.daemon_params()
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
@@ -90,10 +91,9 @@ def _main():
     refresh_min = float(conf.get_item('gpg', 'cache_refresh_minutes', 2))
 
     keyring_path = conf.get_item('gpg', 'keyhome')
-    keys = kcache.KeyCache(keyring_path)
-    keys.load()
-    controller = _init_controller(keys)
-    reloader = _init_reloader(keyring_path, keys)
+    keyring = kcache.KeyRing(keyring_path)
+    controller = _init_controller(keyring)
+    reloader = _init_reloader(keyring_path, keyring)
 
     LOG.info(f'Watching keyring directory {keyring_path}...')
     reloader.start()

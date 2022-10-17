@@ -8,10 +8,19 @@ import lacre.text as text
 import logging
 from os import stat
 from watchdog.events import FileSystemEventHandler
+from asyncio import Semaphore
+import copy
 
 import GnuPG
 
 LOG = logging.getLogger(__name__)
+
+
+def _sanitize(keys):
+    for fingerprint in keys:
+        keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
+
+    return keys
 
 
 class KeyCacheMisconfiguration(Exception):
@@ -26,14 +35,12 @@ class KeyCache:
     [default].
     """
 
-    def __init__(self, keyring_dir: str = None):
+    def __init__(self, keys: dict = None):
         """Initialise an empty cache.
 
         With keyring_dir given, set location of the directory from which keys should be loaded.
         """
-        self._keys = dict()
-        self._keyring_dir = keyring_dir
-        self._last_mod = None
+        self._keys = keys
 
     def __getitem__(self, fingerpring):
         """Look up email assigned to the given fingerprint."""
@@ -53,44 +60,60 @@ class KeyCache:
         """Check if cache contains a key assigned to the given email."""
         return email in self._keys.values()
 
+
+class KeyRing:
+    """A high-level adapter for GnuPG-maintained keyring directory.
+
+    Its role is to keep a cache of keys present in the keyring,
+    reload it when necessary and produce static copies of
+    fingerprint=>email maps.
+    """
+
+    def __init__(self, path: str):
+        """Initialise the adapter."""
+        self._path = path
+        self._keys = self._load_and_sanitize()
+        self._sema = Semaphore()
+        self._last_mod = None
+
+    def _load_and_sanitize(self):
+        keys = self._load_keyring_from(self._path)
+        return _sanitize(keys)
+
+    def _load_keyring_from(self, keyring_dir):
+        return GnuPG.public_keys(keyring_dir)
+
+    async def freeze_identities(self) -> KeyCache:
+        """Return a static, async-safe copy of the identity map."""
+        async with self._sema:
+            keys = copy.deepcopy(self._keys)
+            return KeyCache(keys)
+
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
         LOG.debug('Reloading keys...')
 
-        if self._keyring_dir is None:
-            LOG.error('Keyringn directory not set!')
-            raise KeyCacheMisconfiguration("Keyring directory not configured")
-
         last_mod = self._read_mod_time()
         if self._is_modified(last_mod):
-            self.replace_keyring(self._load_keyring_from(self._keyring_dir))
+            async with self._sema:
+                self.replace_keyring(self._load_keyring_from(self._path))
 
         self._last_mod = self._read_mod_time()
 
     reload = load
 
-    def load_keyring_from(self, keyhome: str):
-        """Add all identities from keyring stored in KEYHOME."""
-        self.extend_keyring(self._load_keyring_from(keyhome))
-
-    def _load_keyring_from(self, keyring_dir):
-        return GnuPG.public_keys(keyring_dir)
-
     def replace_keyring(self, keys: dict):
         """Overwrite previously stored key cache with KEYS."""
-        for fingerprint in keys:
-            keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
+        keys = _sanitize(keys)
 
         LOG.info(f'Storing {len(keys)} keys')
         self._keys = keys
 
-    def extend_keyring(self, keys: dict):
-        """Add all keys from KEYS."""
-        for fingerprint in keys:
-            keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
-
-        LOG.info(f'Adding {len(keys)} keys')
-        self._keys.update(keys)
+    def _read_mod_time(self):
+        # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
+        MTIME = 8
+        st = stat(self._path)
+        return st[MTIME]
 
     def _is_modified(self, last_mod):
         if self._last_mod is None:
@@ -103,24 +126,18 @@ class KeyCache:
             LOG.debug('Keyring not modified ')
             return False
 
-    def _read_mod_time(self):
-        # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
-        MTIME = 8
-        st = stat(self._keyring_dir)
-        return st[MTIME]
-
 
 class KeyringModificationListener(FileSystemEventHandler):
     """A filesystem event listener that triggers key cache reload."""
 
-    def __init__(self, cache: KeyCache):
+    def __init__(self, keyring: KeyRing):
         """Initialise a listener with a callback to be executed upon each change."""
-        self._cache = cache
+        self._keyring = keyring
 
     def handle(self, event):
         """Reload keys upon FS event."""
         LOG.debug(f'Reloading on event {event!r}')
-        self._cache.reload()
+        self._keyring.reload()
 
     # All methods should do the same: reload the key cache.
     # on_created = handle

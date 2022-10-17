@@ -33,6 +33,7 @@ import os
 import smtplib
 import sys
 import time
+import asyncio
 
 # imports for S/MIME
 from M2Crypto import BIO, SMIME, X509
@@ -138,9 +139,8 @@ def _customise_headers(msg_copy):
 
 def _load_keys():
     """Return a map from a key's fingerprint to email address."""
-    keys = kcache.KeyCache()
-    keys.load_keyring_from(conf.get_item('gpg', 'keyhome'))
-    return keys
+    keyring = kcache.KeyRing(conf.get_item('gpg', 'keyhome'))
+    return asyncio.run(keyring.freeze_identities())
 
 
 class GpgRecipient:
