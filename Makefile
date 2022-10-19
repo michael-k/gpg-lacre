@@ -37,7 +37,7 @@ e2etest: test/tmp test/logs pre-clean restore-keyhome
 # it slurps the right config.
 #
 crontest: clean-db $(TEST_DB)
-	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd` $(PYTHON) gpg-mailgate-web/cron.py
+	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd` $(PYTHON) webgate-cron.py
 
 $(TEST_DB):
 	$(PYTHON) test/utils/schema.py $(TEST_DB)
