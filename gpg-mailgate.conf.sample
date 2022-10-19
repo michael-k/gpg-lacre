@@ -75,6 +75,14 @@ mail_templates = /var/gpgmailgate/cron_templates
 # https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
 config = /etc/gpg-lacre-logging.conf
 
+[daemon]
+# Advanced Content Filter section.
+#
+# Advanced filters differ from Simple ones by providing a daemon that handles
+# requests, instead of starting a new process each time a message arrives.
+host = 127.0.0.1
+port = 10025
+
 [relay]
 # the relay settings to use for Postfix
 # gpg-mailgate will submit email to this relay after it is done processing
