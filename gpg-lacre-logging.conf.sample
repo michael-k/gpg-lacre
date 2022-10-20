@@ -51,7 +51,7 @@ args=('/dev/log', handlers.SysLogHandler.LOG_MAIL)
 # Default Postfix log format.
 #
 [formatter_postfixfmt]
-format=%(asctime)s %(module)s[%(process)d]: %(message)s
+format=%(asctime)s %(name)s[%(process)d]: %(message)s
 datefmt=%b %e %H:%M:%S
 style=%
 validate=True

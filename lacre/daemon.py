@@ -49,8 +49,8 @@ class MailEncryptionProxy:
             LOG.exception("Got exception while processing", exc_info=te)
             return RESULT_ERROR
 
-        ellapsed = time.process_time() - start
-        LOG.info(f'Message delivered in {ellapsed} ms')
+        ellapsed = (time.process_time() - start) * 1000
+        LOG.info(f'Message delivered in {ellapsed:.2f} ms')
         return RESULT_OK
 
 
