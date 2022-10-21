@@ -189,9 +189,7 @@ def _identify_gpg_recipients(recipients, keys: kcache.KeyCache):
 
     # GnuPG keys found in our keyring.
 
-    LOG.info(f'Processisng recipients: {recipients!r}; keys: {keys!r}')
     for to in recipients:
-        LOG.info(f"At to={to!r}")
         own_key = _try_configured_key(to, keys)
         if own_key is not None:
             gpg_to.append(GpgRecipient(own_key[0], own_key[1]))

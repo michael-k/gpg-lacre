@@ -60,6 +60,11 @@ class KeyCache:
         """Check if cache contains a key assigned to the given email."""
         return email in self._keys.values()
 
+    def __repr__(self):
+        """Return text representation of this object."""
+        details = ' '.join(self._keys.keys())
+        return f'<KeyCache {details}>'
+
 
 class KeyRing:
     """A high-level adapter for GnuPG-maintained keyring directory.
