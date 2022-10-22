@@ -24,7 +24,7 @@ conf.load_config()
 lacre.init_logging(conf.get_item("logging", "config"))
 LOG = logging.getLogger(__name__)
 
-import lacre.mailgate as gate
+import lacre.core as gate
 import lacre.keyring as kcache
 
 

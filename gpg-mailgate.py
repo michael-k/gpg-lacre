@@ -31,7 +31,7 @@ conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
 # This has to be executed *after* logging initialisation.
-import lacre.mailgate as mailgate
+import lacre.core as core
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ from_addr = raw_message['From']
 to_addrs = sys.argv[1:]
 
 # Let's start
-mailgate.deliver_message(raw_message, from_addr, to_addrs)
-(elapsed_s, process_t) = mailgate.exec_time_info(start)
+core.deliver_message(raw_message, from_addr, to_addrs)
+(elapsed_s, process_t) = core.exec_time_info(start)
 
 LOG.info("Elapsed-time: {elapsed:.2f}s; Process-time: {process:.4f}s".format(elapsed=elapsed_s, process=process_t))
