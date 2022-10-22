@@ -17,10 +17,7 @@ LOG = logging.getLogger(__name__)
 
 
 def _sanitize(keys):
-    for fingerprint in keys:
-        keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
-
-    return keys
+    return {fingerprint: text.sanitize_case_sense(keys[fingerprint]) for fingerprint in keys}
 
 
 class KeyCacheMisconfiguration(Exception):
@@ -118,6 +115,7 @@ class KeyRing:
 
     def _read_mod_time(self):
         # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
+        #  0     1    2    3      4    5    6     7      8      9
         MTIME = 8
         st = stat(self._path)
         return st[MTIME]

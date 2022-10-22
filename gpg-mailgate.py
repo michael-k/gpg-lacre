@@ -26,28 +26,29 @@ import logging
 import lacre
 import lacre.config as conf
 
-start = time.time()
+start = time.process_time()
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
 # This has to be executed *after* logging initialisation.
 import lacre.core as core
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('gpg-mailgate.py')
 
 missing_params = conf.validate_config()
 if missing_params:
     LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
     sys.exit(lacre.EX_CONFIG)
 
-# Read e-mail from stdin
+# Read e-mail from stdin, parse it
 raw = sys.stdin.read()
 raw_message = email.message_from_string(raw)
 from_addr = raw_message['From']
+# Read recipients from the command-line
 to_addrs = sys.argv[1:]
 
 # Let's start
 core.deliver_message(raw_message, from_addr, to_addrs)
-(elapsed_s, process_t) = core.exec_time_info(start)
+process_t = (time.process_time() - start) * 1000
 
-LOG.info("Elapsed-time: {elapsed:.2f}s; Process-time: {process:.4f}s".format(elapsed=elapsed_s, process=process_t))
+LOG.info("Message delivered in {process:.2f} ms".format(process=process_t))

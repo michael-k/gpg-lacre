@@ -22,7 +22,7 @@ RESULT_NOT_IMPLEMENTED = '500 Not implemented yet'
 # the last Lacre module, i.e. lacre.mailgate.
 conf.load_config()
 lacre.init_logging(conf.get_item("logging", "config"))
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('lacre.daemon')
 
 import lacre.core as gate
 import lacre.keyring as kcache
@@ -103,6 +103,8 @@ def _main():
         asyncio.run(_sleep())
     except KeyboardInterrupt:
         LOG.info("Finishing...")
+    except:
+        LOG.exception('Unexpected exception caught, your system may be unstable')
     finally:
         LOG.info('Shutting down keyring watcher and the daemon...')
         reloader.stop()

@@ -73,8 +73,8 @@ class InlineOpenPGPEncrypt(OpenPGPEncrypt):
         """Encrypt with PGP Inline."""
         LOG.debug('Sending PGP/Inline...')
         return core._gpg_encrypt_and_return(msg,
-                                                self._keys, self._recipients,
-                                                core._encrypt_all_payloads_inline)
+                                            self._keys, self._recipients,
+                                            core._encrypt_all_payloads_inline)
 
 
 class MimeOpenPGPEncrypt(OpenPGPEncrypt):
@@ -88,8 +88,8 @@ class MimeOpenPGPEncrypt(OpenPGPEncrypt):
         """Encrypt with PGP MIME."""
         LOG.debug('Sending PGP/MIME...')
         return core._gpg_encrypt_and_return(msg,
-                                                self._keys, self._recipients,
-                                                core._encrypt_all_payloads_mime)
+                                            self._keys, self._recipients,
+                                            core._encrypt_all_payloads_mime)
 
 
 class SMimeEncrypt(MailOperation):

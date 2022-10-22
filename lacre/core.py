@@ -1,9 +1,3 @@
-"""Lacre's actual mail-delivery module.
-
-IMPORTANT: This module has to be loaded _after_ initialisation of the logging
-module.
-"""
-
 #
 # gpg-mailgate
 #
@@ -23,6 +17,12 @@ module.
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
+"""Lacre's actual mail-delivery module.
+
+IMPORTANT: This module has to be loaded _after_ initialisation of the logging
+module.
+"""
+
 from email.mime.multipart import MIMEMultipart
 import copy
 import email
@@ -32,7 +32,6 @@ import GnuPG
 import os
 import smtplib
 import sys
-import time
 import asyncio
 
 # imports for S/MIME
@@ -383,7 +382,7 @@ def _smime_encrypt(raw_message, recipients):
     unsmime_to = list()
 
     for addr in recipients:
-        cert_and_email = _get_cert_for_email(addr[0], cert_path)
+        cert_and_email = _get_cert_for_email(addr, cert_path)
 
         if not (cert_and_email is None):
             (to_cert, normal_email) = cert_and_email
@@ -556,10 +555,3 @@ def deliver_message(raw_message: email.message.Message, from_address, to_addrs):
     # Send out mail to recipients which are left
     LOG.debug("Sending the rest as text/plain")
     send_msg(raw_message.as_string(), recipients_left)
-
-
-def exec_time_info(start_timestamp):
-    """Calculate time since the given timestamp."""
-    elapsed_s = time.time() - start_timestamp
-    process_t = time.process_time()
-    return (elapsed_s, process_t)
