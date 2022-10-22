@@ -107,48 +107,48 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
     LOG.debug(f"Retrieving keys to be processed: {selq}")
     result_set = conn.execute(selq)
 
-    for row in result_set:
+    for key_id, row_id, email in result_set:
         # delete any other public keys associated with this confirmed email address
-        delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == row[2], gpgmw_keys.c.id != row[1]))
+        delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == email, gpgmw_keys.c.id != row_id))
         LOG.debug(f"Deleting public keys associated with confirmed email: {delq}")
         conn.execute(delq)
-        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[2])
-        LOG.info('Deleted key for <' + row[2] + '> via import request')
+        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), email)
+        LOG.info('Deleted key for <' + email + '> via import request')
 
-        if row[0].strip():  # we have this so that user can submit blank key to remove any encryption
-            if GnuPG.confirm_key(row[0], row[2]):
-                GnuPG.add_key(conf.get_item('gpg', 'keyhome'), row[0])  # import the key to gpg
-                modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row[1]).values(status=1)
+        if key_id.strip():  # we have this so that user can submit blank key to remove any encryption
+            if GnuPG.confirm_key(key_id, email):
+                GnuPG.add_key(conf.get_item('gpg', 'keyhome'), key_id)  # import the key to gpg
+                modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row_id).values(status=1)
                 LOG.debug(f"Key imported, updating key: {modq}")
                 conn.execute(modq)                      # mark key as accepted
-                LOG.warning('Imported key from <' + row[2] + '>')
+                LOG.warning('Imported key from <' + email + '>')
                 if conf.config_item_equals('cron', 'send_email', 'yes'):
-                    _send_msg("PGP key registration successful", "registrationSuccess.md", row[2])
+                    _send_msg("PGP key registration successful", "registrationSuccess.md", email)
             else:
-                delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+                delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
                 LOG.debug(f"Cannot confirm key, deleting it: {delq}")
                 conn.execute(delq)              # delete key
-                LOG.warning('Import confirmation failed for <' + row[2] + '>')
+                LOG.warning('Import confirmation failed for <' + email + '>')
                 if conf.config_item_equals('cron', 'send_email', 'yes'):
-                    _send_msg("PGP key registration failed", "registrationError.md", row[2])
+                    _send_msg("PGP key registration failed", "registrationError.md", email)
         else:
             # delete key so we don't continue processing it
-            delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+            delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
             LOG.debug(f"Deleting key: {delq}")
             conn.execute(delq)
             if conf.config_item_equals('cron', 'send_email', 'yes'):
-                _send_msg("PGP key deleted", "keyDeleted.md", row[2])
+                _send_msg("PGP key deleted", "keyDeleted.md", email)
 
     # delete keys
     stat2q = select(gpgmw_keys.c.email, gpgmw_keys.c.id).where(gpgmw_keys.c.status == 2).limit(100)
     stat2_result_set = conn.execute(stat2q)
 
-    for row in stat2_result_set:
-        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), row[0])
-        delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row[1])
+    for email, row_id in stat2_result_set:
+        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), email)
+        delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
         LOG.debug(f"Deleting keys that have already been processed: {delq}")
         conn.execute(delq)
-        LOG.info('Deleted key for <' + row[0] + '>')
+        LOG.info('Deleted key for <' + email + '>')
 else:
     print("Warning: doing nothing since database settings are not configured!")
     LOG.error("Warning: doing nothing since database settings are not configured!")
