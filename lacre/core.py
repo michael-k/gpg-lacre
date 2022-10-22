@@ -506,6 +506,7 @@ def _is_encrypted(raw_message: email.message.Message):
 def delivery_plan(recipients, message: email.message.Message, key_cache: kcache.KeyCache):
     """Generate a sequence of delivery strategies."""
     if _is_encrypted(message):
+        LOG.debug(f'Message is already encrypted: {message!r}')
         return [KeepIntact(recipients)]
 
     gpg_to, ungpg_to = _identify_gpg_recipients(recipients, key_cache)

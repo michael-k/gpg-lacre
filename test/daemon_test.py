@@ -65,9 +65,19 @@ def _load_test_config():
     return cp
 
 
-def _report_result(message_file, expected, test_output):
+def _identity(x):
+    return x
+
+
+def _inversion(x):
+    return not(x)
+
+
+def _report_result(message_file, expected, test_output, boolean_func=_identity):
     status = None
-    if expected in test_output:
+    expected_line = "\r\n" + expected  # + "\r\n"
+    cond_met = boolean_func(expected_line in test_output)
+    if cond_met:
         status = "Success"
     else:
         status = "Failure"
@@ -91,7 +101,10 @@ def _execute_case(config, case_name):
     test_out = test_out.decode('utf-8')
     logging.debug(f"Read {len(test_out)} characters of output: '{test_out}'")
 
-    _report_result(config.get(case_name, "in"), config.get(case_name, "out"), test_out)
+    if 'out' in config[case_name]:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out"), test_out)
+    else:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out-not"), test_out, boolean_func=_inversion)
 
 
 def _main():

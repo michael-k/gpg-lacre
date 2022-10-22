@@ -8,9 +8,10 @@ from email.message import Message
 
 # The standard way to encode line-ending in email:
 EOL = "\r\n"
+EOL_BYTES = b"\r\n"
 
-PGP_INLINE_BEGIN = b"-----BEGIN PGP MESSAGE-----"
-PGP_INLINE_END = b"-----END PGP MESSAGE-----"
+PGP_INLINE_BEGIN = EOL_BYTES + b"-----BEGIN PGP MESSAGE-----" + EOL_BYTES
+PGP_INLINE_END = EOL_BYTES + b"-----END PGP MESSAGE-----" + EOL_BYTES
 
 
 LOG = logging.getLogger(__name__)

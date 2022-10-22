@@ -81,10 +81,19 @@ def _load_file(name):
     return bytes(contents, 'utf-8')
 
 
-def _report_result(message_file, expected, test_output):
+def _identity(x):
+    return x
+
+
+def _inversion(x):
+    return not(x)
+
+
+def _report_result(message_file, expected, test_output, boolean_func=_identity):
     status = None
     expected_line = "\r\n" + expected  # + "\r\n"
-    if expected_line in test_output:
+    cond_met = boolean_func(expected_line in test_output)
+    if cond_met:
         status = "Success"
     else:
         status = "Failure"
@@ -132,7 +141,10 @@ def _execute_e2e_test(case_name, config, config_path):
 
     logging.debug(f"Read {len(testout)} characters of test output: '{testout}'")
 
-    _report_result(config.get(case_name, "in"), config.get(case_name, "out"), testout)
+    if 'out' in config[case_name]:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out"), testout)
+    else:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out-not"), testout, boolean_func=_inversion)
 
 
 def _load_test_config():
