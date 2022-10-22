@@ -5,6 +5,7 @@ module.
 """
 
 import lacre.text as text
+import lacre.config as conf
 import logging
 from os import stat
 from watchdog.events import FileSystemEventHandler
@@ -17,7 +18,8 @@ LOG = logging.getLogger(__name__)
 
 
 def _sanitize(keys):
-    return {fingerprint: text.sanitize_case_sense(keys[fingerprint]) for fingerprint in keys}
+    sanitize = text.choose_sanitizer(conf.get_item('default', 'mail_case_insensitive'))
+    return {fingerprint: sanitize(keys[fingerprint]) for fingerprint in keys}
 
 
 class KeyCacheMisconfiguration(Exception):

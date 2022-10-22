@@ -285,7 +285,7 @@ def _encrypt_all_payloads_inline(message, gpg_to_cmdline):
     return encrypted_payloads
 
 
-def _encrypt_all_payloads_mime(message, gpg_to_cmdline):
+def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
     # Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
     pgp_ver_part = email.message.Message()
     pgp_ver_part.set_payload("Version: 1"+text.EOL)
@@ -308,7 +308,7 @@ def _encrypt_all_payloads_mime(message, gpg_to_cmdline):
         encoding = sys.getdefaultencoding()
         if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
             additionalSubHeader = "Content-Type: " + message['Content-Type'] + text.EOL
-            (base, encoding) = text.parse_content_type(message['Content-Type'])
+            encoding = message.get_content_charset(sys.getdefaultencoding())
             LOG.debug(f"Identified encoding as {encoding}")
         encrypted_part.set_payload(additionalSubHeader+text.EOL + message.get_payload(decode=True).decode(encoding))
         check_nested = True
@@ -335,7 +335,7 @@ def _encrypt_all_payloads_mime(message, gpg_to_cmdline):
 
 def _encrypt_payload(payload, gpg_to_cmdline, check_nested=True):
     raw_payload = payload.get_payload(decode=True)
-    if check_nested and text.is_pgp_inline(raw_payload):
+    if check_nested and text.is_payload_pgp_inline(raw_payload):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
         return payload
 
@@ -492,7 +492,7 @@ def send_msg(message: str, recipients, fromaddr=None):
         LOG.info("No recipient found")
 
 
-def _is_encrypted(raw_message):
+def _is_encrypted(raw_message: email.message.Message):
     if raw_message.get_content_type() == 'multipart/encrypted':
         return True
 
@@ -500,12 +500,14 @@ def _is_encrypted(raw_message):
     if first_part.get_content_type() == 'application/pkcs7-mime':
         return True
 
-    first_payload = first_part.get_payload(decode=True)
-    return text.is_pgp_inline(first_payload)
+    return text.is_message_pgp_inline(first_part)
 
 
-def delivery_plan(recipients, key_cache: kcache.KeyCache):
+def delivery_plan(recipients, message: email.message.Message, key_cache: kcache.KeyCache):
     """Generate a sequence of delivery strategies."""
+    if _is_encrypted(message):
+        return [KeepIntact(recipients)]
+
     gpg_to, ungpg_to = _identify_gpg_recipients(recipients, key_cache)
 
     gpg_mime_to, gpg_mime_cmd, gpg_inline_to, gpg_inline_cmd = \
@@ -531,7 +533,8 @@ def deliver_message(raw_message: email.message.Message, from_address, to_addrs):
     # Ugly workaround to keep the code working without too many changes.
     from_addr = from_address
 
-    recipients_left = [text.sanitize_case_sense(recipient) for recipient in to_addrs]
+    sanitize = text.choose_sanitizer(conf.get_item('default', 'mail_case_insensitive'))
+    recipients_left = [sanitize(recipient) for recipient in to_addrs]
 
     # There is no need for nested encryption
     LOG.debug("Seeing if it's already encrypted")

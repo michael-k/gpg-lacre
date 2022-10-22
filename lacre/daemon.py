@@ -16,7 +16,6 @@ from watchdog.observers import Observer
 # These are the only values that our mail handler is allowed to return.
 RESULT_OK = '250 OK'
 RESULT_ERROR = '500 Could not process your message'
-RESULT_NOT_IMPLEMENTED = '500 Not implemented yet'
 
 # Load configuration and init logging, in this order.  Only then can we load
 # the last Lacre module, i.e. lacre.mailgate.
@@ -41,7 +40,7 @@ class MailEncryptionProxy:
         try:
             keys = await self._keyring.freeze_identities()
             message = email.message_from_bytes(envelope.content)
-            for operation in gate.delivery_plan(envelope.rcpt_tos, keys):
+            for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
                 gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
