@@ -72,7 +72,7 @@ def _report_result(message_file, expected, test_output):
     else:
         status = "Failure"
 
-    print(message_file.ljust(30), status)
+    print(message_file.ljust(35), status)
 
 
 def _execute_case(config, case_name):
@@ -107,7 +107,7 @@ def _main():
 
     server = _spawn([python, "-m", "lacre.daemon"])
 
-    for case_no in range(1, conf.getint("tests", "cases")):
+    for case_no in range(1, conf.getint("tests", "cases") + 1):
         _execute_case(conf, case_name=f"case-{case_no}")
 
     _interrupt(server)
