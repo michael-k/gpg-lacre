@@ -94,7 +94,7 @@ def _define_db_schema():
 conf.load_config()
 
 lacre.init_logging(conf.get_item('logging', 'config'))
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('webgate-cron.py')
 
 
 if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
