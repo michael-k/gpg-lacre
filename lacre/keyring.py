@@ -8,7 +8,7 @@ import lacre.text as text
 import lacre.config as conf
 import logging
 from os import stat
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from asyncio import Semaphore, run
 import copy
 
@@ -141,10 +141,11 @@ class KeyringModificationListener(FileSystemEventHandler):
         """Initialise a listener with a callback to be executed upon each change."""
         self._keyring = keyring
 
-    def handle(self, event):
+    def handle(self, event: FileSystemEvent):
         """Reload keys upon FS event."""
-        LOG.debug(f'Reloading on event {event!r}')
-        self._keyring.reload()
+        if 'pubring.kbx' in event.src_path:
+            LOG.debug(f'Reloading on event {event!r}')
+            self._keyring.reload()
 
     # All methods should do the same: reload the key cache.
     # on_created = handle
