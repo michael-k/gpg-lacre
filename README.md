@@ -1,6 +1,6 @@
 # GPG Lacre Project
 
-GPG Lacre is a fork and continuation of original work of gpg-mailgate project:
+GPG Lacre is a fork and continuation of original work of gpg-mailgate project:
 [gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate).  It is still
 actively developed and should be considered as beta -- with all APIs and
 internals being subject to change.  Please only use this software if you know
