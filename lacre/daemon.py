@@ -16,15 +16,14 @@ from watchdog.observers import Observer
 # These are the only values that our mail handler is allowed to return.
 RESULT_OK = '250 OK'
 RESULT_ERROR = '500 Could not process your message'
-RESULT_NOT_IMPLEMENTED = '500 Not implemented yet'
 
 # Load configuration and init logging, in this order.  Only then can we load
 # the last Lacre module, i.e. lacre.mailgate.
 conf.load_config()
 lacre.init_logging(conf.get_item("logging", "config"))
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('lacre.daemon')
 
-import lacre.mailgate as gate
+import lacre.core as gate
 import lacre.keyring as kcache
 
 
@@ -41,7 +40,7 @@ class MailEncryptionProxy:
         try:
             keys = await self._keyring.freeze_identities()
             message = email.message_from_bytes(envelope.content)
-            for operation in gate.delivery_plan(envelope.rcpt_tos, keys):
+            for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
                 gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
@@ -103,6 +102,8 @@ def _main():
         asyncio.run(_sleep())
     except KeyboardInterrupt:
         LOG.info("Finishing...")
+    except:
+        LOG.exception('Unexpected exception caught, your system may be unstable')
     finally:
         LOG.info('Shutting down keyring watcher and the daemon...')
         reloader.stop()

@@ -81,14 +81,24 @@ def _load_file(name):
     return bytes(contents, 'utf-8')
 
 
-def _report_result(message_file, expected, test_output):
+def _identity(x):
+    return x
+
+
+def _inversion(x):
+    return not(x)
+
+
+def _report_result(message_file, expected, test_output, boolean_func=_identity):
     status = None
-    if expected in test_output:
+    expected_line = "\r\n" + expected  # + "\r\n"
+    cond_met = boolean_func(expected_line in test_output)
+    if cond_met:
         status = "Success"
     else:
         status = "Failure"
 
-    print(message_file.ljust(30), status)
+    print(message_file.ljust(35), status)
 
 
 def _execute_e2e_test(case_name, config, config_path):
@@ -131,7 +141,10 @@ def _execute_e2e_test(case_name, config, config_path):
 
     logging.debug(f"Read {len(testout)} characters of test output: '{testout}'")
 
-    _report_result(config.get(case_name, "in"), config.get(case_name, "out"), testout)
+    if 'out' in config[case_name]:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out"), testout)
+    else:
+        _report_result(config.get(case_name, "in"), config.get(case_name, "out-not"), testout, boolean_func=_inversion)
 
 
 def _load_test_config():
@@ -154,12 +167,12 @@ logging.basicConfig(filename	= config.get("tests", "e2e_log"),
 config_path = os.getcwd() + "/" + CONFIG_FILE
 
 _write_test_config(config_path,
-                  port				= config.get("relay", "port"),
-                  gpg_keyhome		= config.get("dirs", "keys"),
-                  smime_certpath	= config.get("dirs", "certs"),
-                  log_config		= config.get("tests", "log_config"))
+                   port				= config.get("relay", "port"),
+                   gpg_keyhome		= config.get("dirs", "keys"),
+                   smime_certpath	= config.get("dirs", "certs"),
+                   log_config		= config.get("tests", "log_config"))
 
-for case_no in range(1, config.getint("tests", "cases")+1):
+for case_no in range(1, config.getint("tests", "cases") + 1):
     case_name = f"case-{case_no}"
     logging.info(f"Executing {case_name}: {config.get(case_name, 'descr')}")
 

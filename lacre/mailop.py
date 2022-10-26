@@ -14,7 +14,7 @@ There are 3 operations available:
 """
 
 import logging
-import lacre.mailgate as mailgate
+import lacre.core as core
 from email.message import Message
 
 
@@ -72,9 +72,9 @@ class InlineOpenPGPEncrypt(OpenPGPEncrypt):
     def perform(self, msg: Message):
         """Encrypt with PGP Inline."""
         LOG.debug('Sending PGP/Inline...')
-        return mailgate._gpg_encrypt_and_return(msg,
-                                                self._keys, self._recipients,
-                                                mailgate._encrypt_all_payloads_inline)
+        return core._gpg_encrypt_and_return(msg,
+                                            self._keys, self._recipients,
+                                            core._encrypt_all_payloads_inline)
 
 
 class MimeOpenPGPEncrypt(OpenPGPEncrypt):
@@ -87,9 +87,9 @@ class MimeOpenPGPEncrypt(OpenPGPEncrypt):
     def perform(self, msg: Message):
         """Encrypt with PGP MIME."""
         LOG.debug('Sending PGP/MIME...')
-        return mailgate._gpg_encrypt_and_return(msg,
-                                                self._keys, self._recipients,
-                                                mailgate._encrypt_all_payloads_mime)
+        return core._gpg_encrypt_and_return(msg,
+                                            self._keys, self._recipients,
+                                            core._encrypt_all_payloads_mime)
 
 
 class SMimeEncrypt(MailOperation):

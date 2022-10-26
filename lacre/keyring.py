@@ -5,9 +5,10 @@ module.
 """
 
 import lacre.text as text
+import lacre.config as conf
 import logging
 from os import stat
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from asyncio import Semaphore, run
 import copy
 
@@ -17,10 +18,8 @@ LOG = logging.getLogger(__name__)
 
 
 def _sanitize(keys):
-    for fingerprint in keys:
-        keys[fingerprint] = text.sanitize_case_sense(keys[fingerprint])
-
-    return keys
+    sanitize = text.choose_sanitizer(conf.get_item('default', 'mail_case_insensitive'))
+    return {fingerprint: sanitize(keys[fingerprint]) for fingerprint in keys}
 
 
 class KeyCacheMisconfiguration(Exception):
@@ -118,6 +117,7 @@ class KeyRing:
 
     def _read_mod_time(self):
         # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
+        #  0     1    2    3      4    5    6     7      8      9
         MTIME = 8
         st = stat(self._path)
         return st[MTIME]
@@ -141,10 +141,11 @@ class KeyringModificationListener(FileSystemEventHandler):
         """Initialise a listener with a callback to be executed upon each change."""
         self._keyring = keyring
 
-    def handle(self, event):
+    def handle(self, event: FileSystemEvent):
         """Reload keys upon FS event."""
-        LOG.debug(f'Reloading on event {event!r}')
-        self._keyring.reload()
+        if 'pubring.kbx' in event.src_path:
+            LOG.debug(f'Reloading on event {event!r}')
+            self._keyring.reload()
 
     # All methods should do the same: reload the key cache.
     # on_created = handle

@@ -1,20 +1,23 @@
+"""Basic payload-processing routines."""
+
 import sys
 import re
 import logging
+from email.message import Message
 
-import lacre.config as conf
 
 # The standard way to encode line-ending in email:
 EOL = "\r\n"
+EOL_BYTES = b"\r\n"
 
-PGP_INLINE_BEGIN = b"-----BEGIN PGP MESSAGE-----"
-PGP_INLINE_END = b"-----END PGP MESSAGE-----"
+PGP_INLINE_BEGIN = EOL_BYTES + b"-----BEGIN PGP MESSAGE-----" + EOL_BYTES
+PGP_INLINE_END = EOL_BYTES + b"-----END PGP MESSAGE-----" + EOL_BYTES
 
 
 LOG = logging.getLogger(__name__)
 
 
-def parse_content_type(content_type):
+def parse_content_type(content_type: str):
     """Analyse Content-Type email header.
 
     Return a pair: type and sub-type.
@@ -49,19 +52,36 @@ def parse_delimiter(address: str):
         return (address, None)
 
 
-def sanitize_case_sense(address):
-    """Sanitize email case."""
-    # TODO: find a way to make it more unit-testable
-    if conf.flag_enabled('default', 'mail_case_insensitive'):
-        address = address.lower()
+def _lowercase_whole_address(address: str):
+    return address.lower()
+
+
+def _lowercase_domain_only(address: str):
+    parts = address.split('@', maxsplit=2)
+    if len(parts) > 1:
+        return parts[0] + '@' + parts[1].lower()
     else:
-        splitted_address = address.split('@')
-        if len(splitted_address) > 1:
-            address = splitted_address[0] + '@' + splitted_address[1].lower()
-
-    return address
+        return address
 
 
-def is_pgp_inline(payload) -> bool:
-    """Find out if the payload (bytes) contains PGP/INLINE markers."""
+def choose_sanitizer(mail_case_insensitive: bool):
+    """Return a function to sanitize email case sense."""
+    if mail_case_insensitive:
+        return _lowercase_whole_address
+    else:
+        return _lowercase_domain_only
+
+
+def is_payload_pgp_inline(payload: bytes) -> bool:
+    """Find out if the payload (bytes) contains PGP/inline markers."""
     return PGP_INLINE_BEGIN in payload and PGP_INLINE_END in payload
+
+
+def is_message_pgp_inline(message: Message) -> bool:
+    """Find out if a message is already PGP-Inline encrypted."""
+    if message.is_multipart() or isinstance(message.get_payload(), list):
+        # more than one payload, check each one of them
+        return any(is_message_pgp_inline(m.payload()) for m in message.iter_parts())
+    else:
+        # one payload, check it
+        return is_payload_pgp_inline(message.get_payload(decode=True))

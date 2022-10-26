@@ -1,6 +1,7 @@
-"""Lacre configuration
+"""Lacre configuration.
 
-Routines defined here are responsible for processing configuration.
+Routines defined here are responsible for processing and validating
+configuration.
 """
 
 from configparser import RawConfigParser
@@ -18,7 +19,8 @@ CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
 MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("relay", "port"),
                           ("daemon", "host"),
-                          ("daemon", "port")]
+                          ("daemon", "port"),
+                          ("gpg", "keyhome")]
 
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in
@@ -38,6 +40,9 @@ def load_config() -> dict:
 
     parser = _read_config(configFile)
 
+    # XXX: Global variable.  It is a left-over from old GPG-Mailgate code.  We
+    # should drop it and probably use ConfigParser instance where configuration
+    # parameters are needed.
     global cfg
     cfg = _copy_to_dict(parser)
     return cfg
