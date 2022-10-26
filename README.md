@@ -1,6 +1,10 @@
 # GPG Lacre Project
 
-Fork and continuation of original work of gpg-mailgate project: https://github.com/fkrone/gpg-mailgate
+GPG Lacre is a fork and continuation of original work of gpg-mailgate project:
+[gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate).  It is still
+actively developed and should be considered as beta -- with all APIs and
+internals being subject to change.  Please only use this software if you know
+GnuPG well.
 
 
 **GPG Lacre** (wax seal in Portuguese) is a content filter for Postfix that automatically encrypts unencrypted incoming email using PGP or S/MIME for select recipients.
