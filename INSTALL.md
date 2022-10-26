@@ -14,7 +14,7 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 
 ## Install GPG-Mailgate
 ### Requirements
-- Python 3.X is already installed
+- Python 3.x is already installed
 - Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems
 - GnuPG is already installed and configured
 
@@ -22,63 +22,79 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 
 1. Install the Python-M2Crypto module:
 
-        apt-get install python-m2crypto
-        
+```
+apt-get install python-m2crypto
+```
+
 2. Set the home directory for the user `nobody` (sadly this workaround is needed as there is no better solution at this point). If you get an error that the user is currently used by a process, you might need to kill the process manually.
 
-        usermod -d /var/gpgmailgate nobody
-        
+```
+usermod -d /var/gpgmailgate nobody
+```
+
 3. Create dedicated directories for storing PGP keys and S/MIME certificates and make the user `nobody` owner of these:
-        
-        mkdir -p /var/gpgmailgate/.gnupg
-        mkdir -p /var/gpgmailgate/smime
-        chown -R nobody:nogroup /var/gpgmailgate/
+
+```
+mkdir -p /var/gpgmailgate/.gnupg
+mkdir -p /var/gpgmailgate/smime
+chown -R nobody:nogroup /var/gpgmailgate/
+```
 
 4. Place the `gpg-mailgate.py` in `/usr/local/bin/`, make the user `nobody` owner of the file and make it executable:
 
-        chown nobody:nogroup /usr/local/bin/gpg-mailgate.py
-        chmod u+x /usr/local/bin/gpg-mailgate.py
+```
+chown nobody:nogroup /usr/local/bin/gpg-mailgate.py
+chmod u+x /usr/local/bin/gpg-mailgate.py
+```
 
 5. Place the `GnuPG` directory in `/usr/local/lib/python3.x/dist-packages` (replace 3.x with your Python version)
 
-6. Configure `/etc/gpg-mailgate.conf` based on the provided `gpg-mailgate.conf.sample`. Change the settings according to your configuration. If you follow this guide and have a standard configuration for postfix, you don't need to change much. 
+6. Configure `/etc/gpg-mailgate.conf` based on the provided `gpg-mailgate.conf.sample`. Change the settings according to your configuration. If you follow this guide and have a standard configuration for postfix, you don't need to change much.
 
-7. Configure logging by copying `gpg-lacre-logging.conf.sample` to `/etc/gpg-lacre-logging.conf` and editing it according to your needs.  The path to this file is included in `[logging]` section of `gpg-mailgate.conf` file, so if you place it somewhere else, make sure to update the path too.  See also: [Configuration file format](https://docs.python.org/3/library/logging.config.html#configuration-file-format).
+7. Configure logging by copying `gpg-lacre-logging.conf.sample` to `/etc/gpg-lacre-logging.conf` and editing it according to your needs. The path to this file is included in `[logging]` section of `gpg-mailgate.conf` file, so if you place it somewhere else, make sure to update the path too. See also: [Configuration file format](https://docs.python.org/3/library/logging.config.html#configuration-file-format).
 
 8. Add the following to the end of `/etc/postfix/master.cf`
 
-        gpg-mailgate    unix    -   n   n   -   -   pipe
-            flags= user=nobody argv=/usr/local/bin/gpg-mailgate.py ${recipient}
+```
+gpg-mailgate    unix    -   n   n   -   -   pipe
+    flags= user=nobody argv=/usr/local/bin/gpg-mailgate.py ${recipient}
 
-        127.0.0.1:10028 inet    n   -   n   -   10  smtpd
-            -o content_filter=
-            -o receive_override_options=no_unknown_recipient_checks,no_header_body_checks
-            -o smtpd_helo_restrictions=
-            -o smtpd_client_restrictions=
-            -o smtpd_sender_restrictions=
-            -o smtpd_recipient_restrictions=permit_mynetworks,reject
-            -o mynetworks=127.0.0.0/8
-            -o smtpd_authorized_xforward_hosts=127.0.0.0/8
+127. 0. 0. 1:10028 inet    n   -   n   -   10  smtpd
+    -o content_filter=
+    -o receive_override_options=no_unknown_recipient_checks,no_header_body_checks
+    -o smtpd_helo_restrictions=
+    -o smtpd_client_restrictions=
+    -o smtpd_sender_restrictions=
+    -o smtpd_recipient_restrictions=permit_mynetworks,reject
+    -o mynetworks=127. 0. 0. 0/8
+    -o smtpd_authorized_xforward_hosts=127. 0. 0. 0/8
+```
 
-    If you use Postfix versions from 2.5 onwards, it is recommended to change `${recipient}` to `${original_recipient}` in line two of the lines above.
+If you use Postfix versions from 2.5 onwards, it is recommended to change `${recipient}` to `${original_recipient}` in line two of the lines above.
 
 9. Add the following line to `/etc/postfix/main.cf`
 
-        content_filter = gpg-mailgate
+```
+content_filter = gpg-mailgate
+```
 
 10. Optional: GPG can automatically download new public keys for automatic signature verification. To enable automatic create the file `/var/gpgmailgate/.gnupg/gpg.conf`. Add the following line to the file:
 
-        keyserver-options auto-key-retrieve
+```
+keyserver-options auto-key-retrieve
+```
 
 11. Restart Postfix
 
 You are now ready to go. To add a public key for encryption just use the following command:
-        
-        sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/public.key
+
+```
+sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/public.key
+```
 
 - Replace `/some/public.key` with the location of a public key
 - `/some/public.key` can be deleted after importation
-- Confirm that it's working:  
+- Confirm that it's working:
 `sudo -u nobody /usr/bin/gpg --list-keys --homedir=/var/gpgmailgate/.gnupg`
 
 Please also test your installation before using it.
@@ -87,7 +103,7 @@ GPG-Mailgate is also able to handle S/MIME certificates for encrypting mails. Ho
 
 ####Additional settings
 Most mail servers do not handle mail addresses case sensitive. If you know that all your recipient mail servers do not care about case sensitivity then you can set `mail_case_insensitive` in the settings to `yes` so looking up PGP keys or S/MIME certificates does also happen case insensitive.
-If your recipients have problems to decrypt mails encrypted by GPG-Mailgate they might use a piece of software that does not support PGP/MIME encrypted mails. You can tell GPG-Mailgate to use the legacy PGP/INLINE format by adding the recipient to the `pgp_style` map in the following format:  
+If your recipients have problems to decrypt mails encrypted by GPG-Mailgate they might use a piece of software that does not support PGP/MIME encrypted mails. You can tell GPG-Mailgate to use the legacy PGP/INLINE format by adding the recipient to the `pgp_style` map in the following format:
 `User@example.com=inline`
 
 
@@ -102,11 +118,11 @@ With this functionality you could use GPG-Mailgate to decrypt incoming PGP encry
 There are two main types of PGP encryption: PGP/MIME and PGP/INLINE. PGP/MIME is standardized while PGP/INLINE isn't completely clear standardized (even though some people claim so). Decrypting PGP/MIME encrypted mails works in most cases while decrypting PGP/INLINE encrypted mails may fail more often. The reason is that most clients are implementing PGP/INLINE in their own way. GPG-Mailgate is able to decrypt mails which are encrypted PGP/INLINE by GPG-Mailgate on the sender's side. Furthermore it should be able to decrypt PGP/INLINE encrypted mails encrypted by Enigmail. For PGP/INLINE the mail's structure may not be preserved due to how PGP/INLINE is implemented on most clients. If you receive a PGP/INLINE encrypted mail that could not be decrypted by GPG-Mailgate you may ask the sender to use PGP/MIME instead. Furthermore file types might get lost when using PGP/INLINE. Due to this limitations decrypting PGP/INLINE encrypted mails is disabled by default. If you want to take the risk you can set `no_inline_dec` to `no` in the `[default]` section. You have been warned.
 
 #### Setting up decryption
-You need the recipient's private key for whom you want to decrypt mails. Only unprotected keys are supported. Keys protected by a passphrase could not be used. To add the private key, use the following command:  
+You need the recipient's private key for whom you want to decrypt mails. Only unprotected keys are supported. Keys protected by a passphrase could not be used. To add the private key, use the following command:
 `sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/private.key`
 From now on PGP encrypted mails will be decrypted for the recipients for whom the keys are imported.
 
-You also can remove a private key by using the following command. Replace `user@example.com` with the user's address for whom you want to remove the key:  
+You also can remove a private key by using the following command. Replace `user@example.com` with the user's address for whom you want to remove the key:
 `sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --delete-secret-keys user@example.com`
 
 ## Install GPG-Mailgate-Web
@@ -114,14 +130,16 @@ You also can remove a private key by using the following command. Replace `user@
 - A webserver is installed and reachable
 - The webserver is able to handle PHP scripts
 - MySQL is installed
-- Python 3.X is already installed
+- Python 3.x is already installed
 
 ### Installation
 All files you need can be found in the [gpg-mailgate-web](gpg-mailgate-web/) directory.
 
 1. Install the Python-mysqldb and Python-markdown modules:
 
-        apt-get install python-mysqldb python-markdown
+```
+apt-get install python-mysqldb python-markdown
+```
 
 2. Create a new database for GPG-Mailgate-Web.
 
@@ -134,20 +152,26 @@ All files you need can be found in the [gpg-mailgate-web](gpg-mailgate-web/) dir
 6. On your webserver move the `config.sample.php` file to `config.php` and edit the configuration file.
 
 7. Create directories for storing email templates:
-        
-        mkdir -p /var/gpgmailgate/cron_templates
-        
+
+```
+mkdir -p /var/gpgmailgate/cron_templates
+```
+
 8. Copy the templates found in the [cron_templates](cron_templates/) directory into the newly created directory and transfer ownership:
 
-        chown -R nobody:nogroup /var/gpgmailgate/cron_templates
+```
+chown -R nobody:nogroup /var/gpgmailgate/cron_templates
+```
 
 9. Copy `cron.py` to `/usr/local/bin/gpgmw-cron.py`. Make it executable and and transfer ownership to `nobody`:
 
-        chown nobody:nogroup /usr/local/bin/gpgmw-cron.py
-        chmod u+x /usr/local/bin/gpgmw-cron.py
+```
+chown nobody:nogroup /usr/local/bin/gpgmw-cron.py
+chmod u+x /usr/local/bin/gpgmw-cron.py
+```
 
-10. Create `/etc/cron.d/gpgmw` with contents:  
-`*/3 * * * * nobody /usr/bin/python /usr/local/bin/gpgmw-cron.py > /dev/null`  
+10. Create `/etc/cron.d/gpgmw` with contents:
+`*/3 * * * * nobody /usr/bin/python /usr/local/bin/gpgmw-cron.py > /dev/null`
  for executing the cron job automatically.
 
 11. Test your installation.
@@ -164,21 +188,29 @@ GPG-Mailgate-Web can also be used as a keyserver. For more information have a lo
 
 1. Install the Python-requests module:
 
-        apt-get install python-requests
-        
+```
+apt-get install python-requests
+```
+
 2. Create directories for storing email templates:
-        
-        mkdir -p /var/gpgmailgate/register_templates
-        
+
+```
+mkdir -p /var/gpgmailgate/register_templates
+```
+
 3. Copy the templates found in the [register_templates](register_templates/) directory into the newly created directory and transfer ownership:
 
-        chown -R nobody:nogroup /var/gpgmailgate/register_templates
-        
+```
+chown -R nobody:nogroup /var/gpgmailgate/register_templates
+```
+
 4. Copy `register-handler.py` to `/usr/local/bin/register-handler.py`. Make it executable and own it to `nobody`:
 
-        chown nobody:nogroup /usr/local/bin/register-handler.py
-        chmod a+x /usr/local/bin/register-handler.py
-        
+```
+chown nobody:nogroup /usr/local/bin/register-handler.py
+chmod a+x /usr/local/bin/register-handler.py
+```
+
 5. Edit the config file located at `/etc/gpg-mailgate.conf`. Set the parameter `webpanel_url` in `[mailregister]` to the url of your GPG-Mailgate-Web panel (the URL should be the same as the one you use to access the panel with your web browser). Also set the parameter `register_email` to the email address you want the user to see when receiving mails from the register-handler (it does not have to be an existing address but it is recommended). Register-handler will send users mails when they are registering S/MIME certificates or when neither a S/MIME certificate nor a PGP key was found in a mail sent to the register-handler.
 
 6. Add `register:   |/usr/local/bin/register-handler.py` to `/etc/aliases`
