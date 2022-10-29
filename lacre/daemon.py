@@ -56,11 +56,13 @@ class MailEncryptionProxy:
         return RESULT_OK
 
 
-def _init_controller(keys: kcache.KeyRing, tout: float = 5):
+def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
     host, port = conf.daemon_params()
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
-    return Controller(proxy, hostname=host, port=port, ready_timeout=tout)
+    return Controller(proxy, hostname=host, port=port,
+                      ready_timeout=tout,
+                      data_size_limit=max_body_bytes)
 
 
 def _init_reloader(keyring_dir: str, reloader) -> kcache.KeyringModificationListener:
@@ -91,9 +93,12 @@ def _main():
     _validate_config()
 
     keyring_path = conf.get_item('gpg', 'keyhome')
+    max_data_bytes = int(conf.get_item('daemon', 'max_data_bytes', 2**25))
+
     loop = asyncio.get_event_loop()
+
     keyring = kcache.KeyRing(keyring_path, loop)
-    controller = _init_controller(keyring)
+    controller = _init_controller(keyring, max_data_bytes)
     reloader = _init_reloader(keyring_path, keyring)
 
     LOG.info(f'Watching keyring directory {keyring_path}...')

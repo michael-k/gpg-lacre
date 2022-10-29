@@ -59,6 +59,11 @@ config = /etc/gpg-lacre-logging.conf
 host = 127.0.0.1
 port = 10025
 
+# Maximum size (in bytes) of message body, i.e. data provided after DATA
+# message.  Following value comes from aiosmtpd module's default for this
+# setting.
+max_data_bytes = 33554432
+
 [relay]
 # the relay settings to use for Postfix
 # gpg-mailgate will submit email to this relay after it is done processing
