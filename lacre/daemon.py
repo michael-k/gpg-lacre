@@ -47,6 +47,9 @@ class MailEncryptionProxy:
         except TypeError as te:
             LOG.exception("Got exception while processing", exc_info=te)
             return RESULT_ERROR
+        except:
+            LOG.exception('Unexpected exception caught, bouncing message')
+            return RESULT_ERROR
 
         ellapsed = (time.process_time() - start) * 1000
         LOG.info(f'Message delivered in {ellapsed:.2f} ms')
@@ -88,7 +91,8 @@ def _main():
     _validate_config()
 
     keyring_path = conf.get_item('gpg', 'keyhome')
-    keyring = kcache.KeyRing(keyring_path)
+    loop = asyncio.get_event_loop()
+    keyring = kcache.KeyRing(keyring_path, loop)
     controller = _init_controller(keyring)
     reloader = _init_reloader(keyring_path, keyring)
 
@@ -99,7 +103,7 @@ def _main():
     controller.start()
 
     try:
-        asyncio.run(_sleep())
+        loop.run_until_complete(_sleep())
     except KeyboardInterrupt:
         LOG.info("Finishing...")
     except:

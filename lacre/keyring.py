@@ -9,7 +9,7 @@ import lacre.config as conf
 import logging
 from os import stat
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from asyncio import Semaphore, run
+from asyncio import Semaphore, create_task, get_event_loop
 import copy
 
 import GnuPG
@@ -73,12 +73,13 @@ class KeyRing:
     fingerprint=>email maps.
     """
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, loop=None):
         """Initialise the adapter."""
         self._path = path
         self._keys = self._load_and_sanitize()
         self._sema = Semaphore()
         self._last_mod = None
+        self._loop = loop or get_event_loop()
 
     def _load_and_sanitize(self):
         keys = self._load_keyring_from(self._path)
@@ -96,7 +97,8 @@ class KeyRing:
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
         LOG.debug('Reloading keys...')
-        run(self._load())
+        tsk = create_task(self._load(), 'LoadTask')
+        self._loop.run_until_complete(tsk)
 
     async def _load(self):
         last_mod = self._read_mod_time()
