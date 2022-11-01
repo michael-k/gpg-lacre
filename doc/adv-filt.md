@@ -13,7 +13,9 @@ For detailed documentation, see [FILTER README](https://www.postfix.org/FILTER_R
 
 Just use the following command to install dependencies:
 
-    pip install -r requirements.txt
+```
+pip install -r requirements.txt
+```
 
 ## Configuration
 
@@ -30,7 +32,9 @@ setting port to `10026`.
 
 Command to spawn a Lacre daemon process is:
 
-    GPG_MAILGATE_CONFIG=/etc/gpg-mailgate.conf PYTHONPATH=... python -m lacre.daemon
+```
+GPG_MAILGATE_CONFIG=/etc/gpg-mailgate.conf PYTHONPATH=... python -m lacre.daemon
+```
 
 Two environment variables used here are:
 
