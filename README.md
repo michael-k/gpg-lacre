@@ -1,9 +1,9 @@
 # GPG Lacre Project
 
 GPG Lacre is a fork and continuation of original work of gpg-mailgate project:
-[gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate).  It is still
+[gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate). It is still
 actively developed and should be considered as beta -- with all APIs and
-internals being subject to change.  Please only use this software if you know
+internals being subject to change. Please only use this software if you know
 GnuPG well.
 
 
@@ -30,11 +30,13 @@ Made possible thanks to:<br>
 ![](https://nlnet.nl/logo/banner.png)
 
 ---
+
 For installation instructions, please refer to the included **INSTALL** file.
 
 ---
 
 # Features
+
 - Correctly displays attachments and general email content; currently will only display first part of multipart messages
 - Public keys are stored in a dedicated gpg-home-directory
 - Encrypts both matching incoming and outgoing mail (this means gpg-mailgate can be used to encrypt outgoing mail for software that doesn't support PGP or S/MIME)
