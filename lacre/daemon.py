@@ -43,7 +43,7 @@ class MailEncryptionProxy:
             for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
-                gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
+                gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
         except TypeError as te:
             LOG.exception("Got exception while processing", exc_info=te)
             return RESULT_ERROR

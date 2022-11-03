@@ -28,6 +28,7 @@ import copy
 import email
 import email.message
 import email.utils
+from email.policy import SMTP
 import GnuPG
 import os
 import smtplib
@@ -113,16 +114,26 @@ def _sort_gpg_recipients(gpg_to):
     return gpg_to_smtp_mime, gpg_to_cmdline_mime, gpg_to_smtp_inline, gpg_to_cmdline_inline
 
 
-def _gpg_encrypt_and_return(message, cmdline, to, encrypt_f) -> str:
+def _gpg_encrypt_copy(message, cmdline, to, encrypt_f):
     msg_copy = copy.deepcopy(message)
     _customise_headers(msg_copy)
     encrypted_payloads = encrypt_f(msg_copy, cmdline)
     msg_copy.set_payload(encrypted_payloads)
+    return msg_copy
+
+
+def _gpg_encrypt_to_bytes(message, cmdline, to, encrypt_f) -> bytes:
+    msg_copy = _gpg_encrypt_copy(message, cmdline, to, encrypt_f)
+    return msg_copy.as_bytes(policy=SMTP)
+
+
+def _gpg_encrypt_to_str(message, cmdline, to, encrypt_f) -> str:
+    msg_copy = _gpg_encrypt_copy(message, cmdline, to, encrypt_f)
     return msg_copy.as_string()
 
 
 def _gpg_encrypt_and_deliver(message, cmdline, to, encrypt_f):
-    out = _gpg_encrypt_and_return(message, cmdline, to, encrypt_f)
+    out = _gpg_encrypt_to_str(message, cmdline, to, encrypt_f)
     send_msg(out, to)
 
 
@@ -474,6 +485,25 @@ def _get_first_payload(payloads):
 
 
 def send_msg(message: str, recipients, fromaddr=None):
+    """Send MESSAGE to RECIPIENTS to the mail relay."""
+    global from_addr
+
+    if fromaddr is not None:
+        from_addr = fromaddr
+
+    recipients = [_f for _f in recipients if _f]
+    if recipients:
+        LOG.info(f"Sending email to: {recipients!r}")
+        relay = conf.relay_params()
+        smtp = smtplib.SMTP(relay[0], relay[1])
+        if conf.flag_enabled('relay', 'starttls'):
+            smtp.starttls()
+        smtp.sendmail(from_addr, recipients, message)
+    else:
+        LOG.info("No recipient found")
+
+
+def send_msg_bytes(message: bytes, recipients, fromaddr=None):
     """Send MESSAGE to RECIPIENTS to the mail relay."""
     global from_addr
 

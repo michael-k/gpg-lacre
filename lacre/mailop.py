@@ -16,6 +16,7 @@ There are 3 operations available:
 import logging
 import lacre.core as core
 from email.message import Message
+from email.policy import SMTP
 
 
 LOG = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class MailOperation:
         """Initialise the operation with a recipient."""
         self._recipients = recipients
 
-    def perform(self, message: Message):
+    def perform(self, message: Message) -> bytes:
         """Perform this operation on MESSAGE.
 
         Return target message.
@@ -69,12 +70,12 @@ class InlineOpenPGPEncrypt(OpenPGPEncrypt):
         """Initialise strategy object."""
         super().__init__(recipients, keys, keyhome)
 
-    def perform(self, msg: Message):
+    def perform(self, msg: Message) -> bytes:
         """Encrypt with PGP Inline."""
         LOG.debug('Sending PGP/Inline...')
-        return core._gpg_encrypt_and_return(msg,
-                                            self._keys, self._recipients,
-                                            core._encrypt_all_payloads_inline)
+        return core._gpg_encrypt_to_bytes(msg,
+                                          self._keys, self._recipients,
+                                          core._encrypt_all_payloads_inline)
 
 
 class MimeOpenPGPEncrypt(OpenPGPEncrypt):
@@ -84,12 +85,12 @@ class MimeOpenPGPEncrypt(OpenPGPEncrypt):
         """Initialise strategy object."""
         super().__init__(recipients, keys, keyhome)
 
-    def perform(self, msg: Message):
+    def perform(self, msg: Message) -> bytes:
         """Encrypt with PGP MIME."""
         LOG.debug('Sending PGP/MIME...')
-        return core._gpg_encrypt_and_return(msg,
-                                            self._keys, self._recipients,
-                                            core._encrypt_all_payloads_mime)
+        return core._gpg_encrypt_to_bytes(msg,
+                                          self._keys, self._recipients,
+                                          core._encrypt_all_payloads_mime)
 
 
 class SMimeEncrypt(MailOperation):
@@ -101,10 +102,10 @@ class SMimeEncrypt(MailOperation):
         self._email = email
         self._cert = certificate
 
-    def perform(self, message: Message):
+    def perform(self, message: Message) -> bytes:
         """Encrypt with a certificate."""
         LOG.warning(f"Delivering clear-text to {self._recipients}")
-        return message
+        return message.as_bytes(policy=SMTP)
 
     def __repr__(self):
         """Generate a representation with just method and key."""
@@ -121,9 +122,9 @@ class KeepIntact(MailOperation):
         """Initialise pass-through operation for a given recipient."""
         super().__init__(recipients)
 
-    def perform(self, message: Message):
+    def perform(self, message: Message) -> bytes:
         """Return MESSAGE unmodified."""
-        return message.as_string()
+        return message.as_bytes(policy=SMTP)
 
     def __repr__(self):
         """Return representation with just method and email."""

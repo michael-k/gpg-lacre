@@ -2,20 +2,25 @@ import logging
 import smtplib
 import sys
 import getopt
-from email import policy, message_from_binary_file
+from email import message_from_binary_file
+from email.policy import SMTPUTF8
 
 
-def _load_file(name):
+def _load_file(name) -> bytes:
     with open(name, 'rb') as f:
-        return message_from_binary_file(f, policy=policy.SMTP)
+        return f.read()
 
 
-def _send(host, port, from_addr, recipients, message):
+def _load_message(name):
+    with open(name, 'rb') as f:
+        return message_from_binary_file(f, policy=SMTPUTF8)
+
+
+def _send_message(host, port, from_addr, recipients, message):
     logging.info(f"From {from_addr} to {recipients} at {host}:{port}")
     try:
         smtp = smtplib.SMTP(host, port)
-        # smtp.starttls()
-        return smtp.sendmail(from_addr, recipients, message.as_bytes(policy=policy.SMTP))
+        return smtp.sendmail(from_addr, recipients, message.as_bytes())
     except smtplib.SMTPDataError as e:
         logging.error(f"Couldn't deliver message. Got error: {e}")
         return None
@@ -25,6 +30,21 @@ def _send(host, port, from_addr, recipients, message):
     except:
         logging.exception('Unexpected exception was thrown')
         return None
+
+
+# The poinf of this function is to do _almost_ what SMTP.sendmail does, but
+# without enforcing ASCII.  We want to test Lacre with not necessarily valid
+# messages.
+def _send_bytes(host: str, port, from_addr: str, recipients, message: bytes):
+    try:
+        smtp = smtplib.SMTP(host, port)
+        smtp.ehlo_or_helo_if_needed()
+        smtp.mail(from_addr)
+        for r in recipients:
+            smtp.rcpt(r)
+        smtp.data(message)
+    except:
+        logging.exception('Unexpected exception was thrown')
 
 
 logging.basicConfig(filename="test/logs/sendmail.log",
@@ -49,4 +69,4 @@ for opt, value in opts:
 if message is None or sender is None or recipient is None:
     print('Use options to provide: -f sender -t recipient -m message')
 
-_send('localhost', 10025, sender, [recipient], message)
+_send_bytes('localhost', 10025, sender, [recipient], message)
