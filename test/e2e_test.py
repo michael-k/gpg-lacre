@@ -74,11 +74,11 @@ def _write_test_config(outfile, **config):
 
 
 def _load_file(name):
-    f = open(name, 'r')
+    f = open(name, 'rb')
     contents = f.read()
     f.close()
 
-    return bytes(contents, 'utf-8')
+    return contents
 
 
 def _identity(x):

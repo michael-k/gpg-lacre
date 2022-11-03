@@ -12,6 +12,8 @@ import sys
 import socket
 
 import logging
+import email
+import email.policy
 
 
 EXIT_UNAVAILABLE = 1
@@ -19,7 +21,7 @@ EXIT_UNAVAILABLE = 1
 ENCODING = 'utf-8'
 
 BUFFER_SIZE = 4096
-EOM = "\r\n.\r\n"
+EOM = b"\r\n.\r\n"
 LAST_LINE = -3
 
 
@@ -42,7 +44,7 @@ def receive_and_confirm(session):
 def localhost_at(port):
     return ('127.0.0.1', port)
 
-def serve(port):
+def serve(port) -> bytes:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.bind(localhost_at(port))
@@ -63,13 +65,14 @@ def serve(port):
     receive_and_confirm(conn)                       # Ignore sender address
     receive_and_confirm(conn)                       # Ignore recipient address
 
-    conn.recv(BUFFER_SIZE)
+    b = conn.recv(BUFFER_SIZE)
+    logging.debug('Got data: %s', repr(b))
     conn.sendall(provide_message())
 
     # Consume until we get <CR><LF>.<CR><LF>, the end-of-message marker.
-    message = ''
+    message = b''
     while not message.endswith(EOM):
-        message += conn.recv(BUFFER_SIZE).decode(ENCODING)
+        message += conn.recv(BUFFER_SIZE)
     conn.sendall(ok(b"OK, id=test"))
 
     conn.recv(BUFFER_SIZE)
@@ -77,7 +80,7 @@ def serve(port):
 
     conn.close()
 
-    logging.debug(f"Received {len(message)} characters of data")
+    logging.debug(f"Received {len(message)} bytes of data")
 
     # Trim EOM marker as we're only interested in the message body.
     return message[:-len(EOM)]
@@ -101,4 +104,5 @@ if len(sys.argv) < 2:
 port = int(sys.argv[1])
 body = serve(port)
 
-print(body)
+msg = email.message_from_bytes(body, policy=email.policy.SMTP)
+print(msg)
