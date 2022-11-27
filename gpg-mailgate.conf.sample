@@ -64,6 +64,10 @@ port = 10025
 # setting.
 max_data_bytes = 33554432
 
+# Sometimes it may make sense to log additional information from mail headers.
+# This should never be PII, but information like encoding, content types, etc.
+log_headers = no
+
 [relay]
 # the relay settings to use for Postfix
 # gpg-mailgate will submit email to this relay after it is done processing

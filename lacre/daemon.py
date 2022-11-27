@@ -40,20 +40,36 @@ class MailEncryptionProxy:
         try:
             keys = await self._keyring.freeze_identities()
             message = email.message_from_bytes(envelope.content)
+
+            if message.defects:
+                # Sometimes a weird message cannot be encoded back and
+                # delivered, so before bouncing such messages we at least
+                # record information about the issues.  Defects are identified
+                # by email.* package.
+                LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
+
+            if conf.flag_enabled('daemon', 'log_headers'):
+                LOG.info('Message headers: %s', self._extract_headers(message))
+
             for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 new_message = operation.perform(message)
                 gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
-        except TypeError as te:
-            LOG.exception("Got exception while processing", exc_info=te)
-            return RESULT_ERROR
+
         except:
             LOG.exception('Unexpected exception caught, bouncing message')
             return RESULT_ERROR
 
         ellapsed = (time.process_time() - start) * 1000
         LOG.info(f'Message delivered in {ellapsed:.2f} ms')
+
         return RESULT_OK
+
+    def _extract_headers(self, message: email.message.Message):
+        return {
+            'mime'     : message.get_content_type(),
+            'charsets' : message.get_charsets()
+            }
 
 
 def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5):
