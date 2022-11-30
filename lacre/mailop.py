@@ -16,7 +16,7 @@ There are 3 operations available:
 import logging
 import lacre.core as core
 from email.message import Message
-from email.policy import SMTP
+from email.policy import SMTP, SMTPUTF8
 
 
 LOG = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ class KeepIntact(MailOperation):
 
     def perform(self, message: Message) -> bytes:
         """Return MESSAGE unmodified."""
-        return message.as_bytes(policy=SMTP)
+        return message.as_bytes(policy=SMTPUTF8)
 
     def __repr__(self):
         """Return representation with just method and email."""

@@ -28,7 +28,7 @@ import copy
 import email
 import email.message
 import email.utils
-from email.policy import SMTP
+from email.policy import SMTPUTF8
 import GnuPG
 import os
 import smtplib
@@ -124,7 +124,7 @@ def _gpg_encrypt_copy(message, cmdline, to, encrypt_f):
 
 def _gpg_encrypt_to_bytes(message, cmdline, to, encrypt_f) -> bytes:
     msg_copy = _gpg_encrypt_copy(message, cmdline, to, encrypt_f)
-    return msg_copy.as_bytes(policy=SMTP)
+    return msg_copy.as_bytes(policy=SMTPUTF8)
 
 
 def _gpg_encrypt_to_str(message, cmdline, to, encrypt_f) -> str:

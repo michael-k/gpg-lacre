@@ -102,9 +102,14 @@ class KeyRing:
 
     async def _load(self):
         last_mod = self._read_mod_time()
+        LOG.debug(f'Keyring was last modified: {last_mod}')
         if self._is_modified(last_mod):
+            LOG.debug('Keyring has been modified')
             async with self._sema:
+                LOG.debug('About to re-load the keyring')
                 self.replace_keyring(self._load_keyring_from(self._path))
+        else:
+            LOG.debug('Keyring not modified recently, continuing')
 
         self._last_mod = self._read_mod_time()
 
