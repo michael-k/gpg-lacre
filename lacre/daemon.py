@@ -68,7 +68,8 @@ class MailEncryptionProxy:
     def _extract_headers(self, message: email.message.Message):
         return {
             'mime'     : message.get_content_type(),
-            'charsets' : message.get_charsets()
+            'charsets' : message.get_charsets(),
+            'cte'      : message['Content-Transfer-Encoding']
             }
 
 
