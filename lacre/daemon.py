@@ -39,7 +39,7 @@ class MailEncryptionProxy:
         start = time.process_time()
         try:
             keys = await self._keyring.freeze_identities()
-            message = email.message_from_bytes(envelope.content)
+            message = email.message_from_bytes(envelope.original_content)
 
             if message.defects:
                 # Sometimes a weird message cannot be encoded back and
