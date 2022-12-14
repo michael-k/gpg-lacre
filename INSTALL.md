@@ -1,11 +1,14 @@
 # Installation instructions
+
 ## Content
+
 - General information
 - Install GPG-Mailgate
 - Install GPG-Mailgate-Web
 - Install Register-handler
 
 ## General information
+
 GPG-Mailgate is divided in 3 main parts: GPG-Mailgate itself, GPG-Mailgate-Web and Register-handler. Some parts of the GPG-Mailgate project depend on other parts of the project. You will find information about these dependencies at the beginning of every installation part.
 
 These instructions show you how to set up GPG-Mailgate in an easy way. If you are a more advanced user, feel free to experiment with the settings. For these instructions a home directory for the user `nobody` is set. Sadly this is an odd workaround but no better solution was found.
@@ -13,7 +16,9 @@ These instructions show you how to set up GPG-Mailgate in an easy way. If you ar
 These instructions are based on an installation on an Ubuntu 14.04 LTS virtual machine. For other Linux distributions and other versions these instructions might need to be adapted to your distribution (e.g. installation of packages and used directories).
 
 ## Install GPG-Mailgate
+
 ### Requirements
+
 - Python 3.x is already installed
 - Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems
 - GnuPG is already installed and configured
@@ -101,23 +106,29 @@ Please also test your installation before using it.
 
 GPG-Mailgate is also able to handle S/MIME certificates for encrypting mails. However, it is best to use it in combination with Register-Handler described later to add new certificates. If you try to add them manually it might fail. The certificates are stored in `/var/gpgmailgate/smime` in PKCS7 format and are named like `User@example.com` (the user part is case sensitive, the domain part should be in lower case).
 
-####Additional settings
+#### Additional settings
+
 Most mail servers do not handle mail addresses case sensitive. If you know that all your recipient mail servers do not care about case sensitivity then you can set `mail_case_insensitive` in the settings to `yes` so looking up PGP keys or S/MIME certificates does also happen case insensitive.
 If your recipients have problems to decrypt mails encrypted by GPG-Mailgate they might use a piece of software that does not support PGP/MIME encrypted mails. You can tell GPG-Mailgate to use the legacy PGP/INLINE format by adding the recipient to the `pgp_style` map in the following format:
 `User@example.com=inline`
 
 
 ### Mail decryption
+
 GPG-Mailgate does not only feature encryption of mails but also decryption of PGP encrypted mails.
+
 #### Important notice
+
 **Read carefully before setting up and using this functionality!**
 
 With this functionality you could use GPG-Mailgate to decrypt incoming PGP encrypted mails (it is also capable of decrypting outgoing mails if the necessary key is present). To use this, you need to store your private keys on the server. This means that anyone who is able to obtain admin rights on the server is able to get the private keys stored on the server and is able to decrypt any mail encrypted with the corresponding public key. **If the server gets compromised in any kind and the attacker may have gained access to the server's file system, the keys have to be regarded as compromised as well!** If this happens you have to revoke your keys, notify everyone who has your public key (key servers as well) not to use this key any longer. You also need to create a new key pair for encrypted communication.
 
 #### Limitations
+
 There are two main types of PGP encryption: PGP/MIME and PGP/INLINE. PGP/MIME is standardized while PGP/INLINE isn't completely clear standardized (even though some people claim so). Decrypting PGP/MIME encrypted mails works in most cases while decrypting PGP/INLINE encrypted mails may fail more often. The reason is that most clients are implementing PGP/INLINE in their own way. GPG-Mailgate is able to decrypt mails which are encrypted PGP/INLINE by GPG-Mailgate on the sender's side. Furthermore it should be able to decrypt PGP/INLINE encrypted mails encrypted by Enigmail. For PGP/INLINE the mail's structure may not be preserved due to how PGP/INLINE is implemented on most clients. If you receive a PGP/INLINE encrypted mail that could not be decrypted by GPG-Mailgate you may ask the sender to use PGP/MIME instead. Furthermore file types might get lost when using PGP/INLINE. Due to this limitations decrypting PGP/INLINE encrypted mails is disabled by default. If you want to take the risk you can set `no_inline_dec` to `no` in the `[default]` section. You have been warned.
 
 #### Setting up decryption
+
 You need the recipient's private key for whom you want to decrypt mails. Only unprotected keys are supported. Keys protected by a passphrase could not be used. To add the private key, use the following command:
 `sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/private.key`
 From now on PGP encrypted mails will be decrypted for the recipients for whom the keys are imported.
@@ -126,13 +137,16 @@ You also can remove a private key by using the following command. Replace `user@
 `sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --delete-secret-keys user@example.com`
 
 ## Install GPG-Mailgate-Web
+
 ### Requirements
+
 - A webserver is installed and reachable
 - The webserver is able to handle PHP scripts
 - MySQL is installed
 - Python 3.x is already installed
 
 ### Installation
+
 All files you need can be found in the [gpg-mailgate-web](gpg-mailgate-web/) directory.
 
 1. Install the Python-mysqldb and Python-markdown modules:
@@ -177,10 +191,13 @@ chmod u+x /usr/local/bin/gpgmw-cron.py
 11. Test your installation.
 
 ### GPG-Mailgate-Web as keyserver
+
 GPG-Mailgate-Web can also be used as a keyserver. For more information have a look at GPG-Mailgate-Web's [readme](gpg-mailgate-web/README).
 
 ## Install Register-handler
+
 ### Requirements
+
 - Already set up and working GPG-Mailgate-Web. It should be reachable from the machine that will run register-handler
 - Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems. Your Postfix configuration should also support aliases
 
