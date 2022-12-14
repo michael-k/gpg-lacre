@@ -9,6 +9,7 @@ from email.message import Message
 # The standard way to encode line-ending in email:
 EOL = "\r\n"
 EOL_BYTES = b"\r\n"
+DOUBLE_EOL_BYTES = EOL_BYTES*2
 
 PGP_INLINE_BEGIN = EOL_BYTES + b"-----BEGIN PGP MESSAGE-----" + EOL_BYTES
 PGP_INLINE_END = EOL_BYTES + b"-----END PGP MESSAGE-----" + EOL_BYTES

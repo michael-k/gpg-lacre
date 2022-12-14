@@ -2,6 +2,7 @@
 
 import logging
 import lacre
+from lacre.text import DOUBLE_EOL_BYTES
 import lacre.config as conf
 import sys
 from aiosmtpd.controller import Controller
@@ -39,6 +40,7 @@ class MailEncryptionProxy:
         start = time.process_time()
         try:
             keys = await self._keyring.freeze_identities()
+            LOG.debug('Parsing message: %s', self._beginning(envelope))
             message = email.message_from_bytes(envelope.original_content)
 
             if message.defects:
@@ -64,6 +66,15 @@ class MailEncryptionProxy:
         LOG.info(f'Message delivered in {ellapsed:.2f} ms')
 
         return RESULT_OK
+
+    def _beginning(self, e: Envelope) -> bytes:
+        double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
+        if double_eol_pos < 0:
+            limit = len(e.original_content)
+        else:
+            limit = double_eol_pos
+        end = min(limit, 2560)
+        return e.original_content[0:end]
 
     def _extract_headers(self, message: email.message.Message):
         return {
