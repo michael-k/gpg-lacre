@@ -63,6 +63,9 @@ def public_keys(keyhome):
             keys[fingerprint] = email
             fingerprint = None
             email = None
+
+    p.stdout.close()
+    p.stderr.close()
     return keys
 
 
