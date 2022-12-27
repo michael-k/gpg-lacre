@@ -83,7 +83,7 @@ def _report_result(message_file, expected, test_output, boolean_func=_identity):
     else:
         status = "Failure"
 
-    print(message_file.ljust(35), status)
+    print(message_file.ljust(84, '.'), status)
 
 
 def _execute_case(config, case_name):
@@ -103,9 +103,9 @@ def _execute_case(config, case_name):
     logging.debug(f"Read {len(test_out)} characters of output: '{test_out}'")
 
     if 'out' in config[case_name]:
-        _report_result(config.get(case_name, "in"), config.get(case_name, "out"), test_out)
+        _report_result(config.get(case_name, "descr"), config.get(case_name, "out"), test_out)
     else:
-        _report_result(config.get(case_name, "in"), config.get(case_name, "out-not"), test_out, boolean_func=_inversion)
+        _report_result(config.get(case_name, "descr"), config.get(case_name, "out-not"), test_out, boolean_func=_inversion)
 
 
 def _main():
