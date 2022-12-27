@@ -37,6 +37,20 @@ POS_FINGERPRINT = 9
 LOG = logging.getLogger(__name__)
 
 
+class EncryptionException(Exception):
+    """Represents a failure to encrypt a payload."""
+
+    def __init__(self, issue: str, recipient: str, cause: str):
+        """Initialise an exception."""
+        self._issue = issue
+        self._recipient = recipient
+        self._cause = cause
+
+    def __str__(self):
+        """Return human-readable string representation."""
+        return f"issue: {self._issue}; to: {self._recipient}; cause: {self._cause}"
+
+
 def _build_command(key_home, *args, **kwargs):
     cmd = ["gpg", '--homedir', key_home] + list(args)
     return cmd
@@ -155,11 +169,15 @@ class GPGEncryptor:
     def encrypt(self):
         """Feed GnuPG with the message."""
         p = subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        encdata = p.communicate(input=self._message)[0]
+        encdata, err = p.communicate(input=self._message)
+        if p.returncode != 0:
+            LOG.debug('Errors: %s', err)
+            details = parse_status(err)
+            raise EncryptionException(details['issue'], details['recipient'], details['cause'])
         return (encdata, p.returncode)
 
     def _command(self):
-        cmd = _build_command(self._keyhome, "--trust-model", "always", "--batch", "--yes", "--pgp7", "--no-secmem-warning", "-a", "-e")
+        cmd = _build_command(self._keyhome, "--trust-model", "always", "--status-fd", "2", "--batch", "--yes", "--pgp7", "--no-secmem-warning", "-a", "-e")
 
         # add recipients
         for recipient in self._recipients:
@@ -195,3 +213,62 @@ class GPGDecryptor:
 
     def _command(self):
         return _build_command(self._keyhome, "--trust-model", "always", "--batch", "--yes", "--no-secmem-warning", "-a", "-d")
+
+
+STATUS_FD_PREFIX = b'[GNUPG:] '
+STATUS_FD_PREFIX_LEN = len(STATUS_FD_PREFIX)
+
+KEY_EXPIRED       = b'KEYEXPIRED'
+KEY_REVOKED       = b'KEYREVOKED'
+NO_RECIPIENTS     = b'NO_RECP'
+INVALID_RECIPIENT = b'INV_RECP'
+
+# INV_RECP reason code descriptions.
+INVALID_RECIPIENT_CAUSES = [
+    'No specific reason given',
+    'Not Found',
+    'Ambiguous specification',
+    'Wrong key usage',
+    'Key revoked',
+    'Key expired',
+    'No CRL known',
+    'CRL too old',
+    'Policy mismatch',
+    'Not a secret key',
+    'Key not trusted',
+    'Missing certificate',
+    'Missing issuer certificate',
+    'Key disabled',
+    'Syntax error in specification'
+    ]
+
+
+def parse_status(status_buffer: str) -> dict:
+    """Parse --status-fd output and return important information."""
+    return parse_status_lines(status_buffer.splitlines())
+
+
+def parse_status_lines(lines: list) -> dict:
+    """Parse --status-fd output and return important information."""
+    result = {'issue': 'n/a', 'recipient': 'n/a', 'cause': 'Unknown'}
+
+    LOG.debug('Processing stderr lines %s', lines)
+
+    for line in lines:
+        LOG.debug('At gnupg stderr line %s', line)
+        if not line.startswith(STATUS_FD_PREFIX):
+            continue
+
+        if line.startswith(KEY_EXPIRED, STATUS_FD_PREFIX_LEN):
+            result['issue'] = KEY_EXPIRED
+        elif line.startswith(KEY_REVOKED, STATUS_FD_PREFIX_LEN):
+            result['issue'] = KEY_REVOKED
+        elif line.startswith(NO_RECIPIENTS, STATUS_FD_PREFIX_LEN):
+            result['issue'] = NO_RECIPIENTS
+        elif line.startswith(INVALID_RECIPIENT, STATUS_FD_PREFIX_LEN):
+            words = line.split(b' ')
+            reason_code = int(words[2])
+            result['recipient'] = words[3]
+            result['cause'] = INVALID_RECIPIENT_CAUSES[reason_code]
+
+    return result

@@ -4,6 +4,7 @@ import logging
 import lacre
 from lacre.text import DOUBLE_EOL_BYTES
 import lacre.config as conf
+from GnuPG import EncryptionException
 import sys
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
@@ -26,6 +27,7 @@ LOG = logging.getLogger('lacre.daemon')
 
 import lacre.core as gate
 import lacre.keyring as kcache
+from lacre.mailop import KeepIntact
 
 
 class MailEncryptionProxy:
@@ -55,8 +57,16 @@ class MailEncryptionProxy:
 
             for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
-                new_message = operation.perform(message)
-                gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
+                try:
+                    new_message = operation.perform(message)
+                    gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
+                except EncryptionException:
+                    # If the message can't be encrypted, deliver cleartext.
+                    LOG.exception('Unable to encrypt message, delivering in cleartext')
+                    if not isinstance(operation, KeepIntact):
+                        self._send_unencrypted(operation, message, envelope)
+                    else:
+                        LOG.error(f'Cannot perform {operation}')
 
         except:
             LOG.exception('Unexpected exception caught, bouncing message')
@@ -66,6 +76,11 @@ class MailEncryptionProxy:
         LOG.info(f'Message delivered in {ellapsed:.2f} ms')
 
         return RESULT_OK
+
+    def _send_unencrypted(self, operation, message, envelope):
+        keep = KeepIntact(operation.recipients())
+        new_message = keep.perform(message)
+        gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)

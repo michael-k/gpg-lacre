@@ -357,9 +357,6 @@ def _encrypt_payload(payload, gpg_to_cmdline, check_nested=True):
     gpg.update(raw_payload)
     encrypted_data, returncode = gpg.encrypt()
     LOG.debug("Return code from encryption=%d (0 indicates success)." % returncode)
-    if returncode != 0:
-        LOG.info("Encrytion failed with return code %d. Encryption aborted." % returncode)
-        return payload
 
     payload.set_payload(encrypted_data)
     isAttachment = payload.get_param('attachment', None, 'Content-Disposition') is not None

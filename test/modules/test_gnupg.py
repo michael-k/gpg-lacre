@@ -2,7 +2,6 @@ import GnuPG
 
 import unittest
 
-
 class GnuPGUtilitiesTest(unittest.TestCase):
     def test_build_default_command(self):
         cmd = GnuPG._build_command("test/keyhome")
@@ -49,6 +48,18 @@ class GnuPGUtilitiesTest(unittest.TestCase):
     def _load(self, filename):
         with open(filename) as f:
             return f.read()
+
+    def test_parse_statusfd_key_expired(self):
+        key_expired = b"""
+[GNUPG:] KEYEXPIRED 1668272263
+[GNUPG:] KEY_CONSIDERED XXXXXXXXXXXXX 0
+[GNUPG:] INV_RECP 0 name@domain
+[GNUPG:] FAILURE encrypt 1
+"""
+        result = GnuPG.parse_status(key_expired)
+        self.assertEqual(result['issue'], b'KEYEXPIRED')
+        self.assertEqual(result['recipient'], b'name@domain')
+        self.assertEqual(result['cause'], 'No specific reason given')
 
 
 if __name__ == '__main__':

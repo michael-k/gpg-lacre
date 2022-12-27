@@ -3,7 +3,7 @@ Content-Type: multipart/alternative;
 Date: Wed, 23 Nov 2022 08:06:29 +0100
 MIME-Version: 1.0
 Content-Language: pl-PL
-From: Sender <lukas@lacre.io>
+From: Dave <dave@localhost>
 To: carlos@disposlab
 Subject: Lorem ipsum...
 
