@@ -37,6 +37,15 @@ class GnuPGUtilitiesTest(unittest.TestCase):
 
         self.assertDictEqual(keys, known_identities)
 
+    def test_add_delete_key(self):
+        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
+        GnuPG.add_key('/tmp', self._load('test/keys/bob@disposlab.pub'))
+        self.assertDictEqual(GnuPG.public_keys('/tmp'), {
+            '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67': 'bob@disposlab',
+        })
+        GnuPG.delete_key('/tmp', 'bob@disposlab')
+        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
+
     def _load(self, filename):
         with open(filename) as f:
             return f.read()
