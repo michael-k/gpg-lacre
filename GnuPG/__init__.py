@@ -156,7 +156,7 @@ class GPGEncryptor:
     def __init__(self, keyhome, recipients=None, charset=None):
         """Initialise the wrapper."""
         self._keyhome = keyhome
-        self._message = b''
+        self._message = None
         self._recipients = list()
         self._charset = charset
         if recipients is not None:
@@ -164,11 +164,15 @@ class GPGEncryptor:
 
     def update(self, message):
         """Append MESSAGE to buffer about to be encrypted."""
-        self._message += message
+        if self._message is None:
+            self._message = message
+        else:
+            self._message += message
 
     def encrypt(self):
         """Feed GnuPG with the message."""
-        p = subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True)
         encdata, err = p.communicate(input=self._message)
         if p.returncode != 0:
             LOG.debug('Errors: %s', err)

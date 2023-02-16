@@ -14,6 +14,9 @@ DOUBLE_EOL_BYTES = EOL_BYTES*2
 PGP_INLINE_BEGIN = EOL_BYTES + b"-----BEGIN PGP MESSAGE-----" + EOL_BYTES
 PGP_INLINE_END = EOL_BYTES + b"-----END PGP MESSAGE-----" + EOL_BYTES
 
+PGP_INLINE_BEGIN_S = EOL + "-----BEGIN PGP MESSAGE-----" + EOL
+PGP_INLINE_END_S = EOL + "-----END PGP MESSAGE-----" + EOL
+
 
 LOG = logging.getLogger(__name__)
 
@@ -73,9 +76,14 @@ def choose_sanitizer(mail_case_insensitive: bool):
         return _lowercase_domain_only
 
 
-def is_payload_pgp_inline(payload: bytes) -> bool:
+def is_payload_pgp_inline(payload) -> bool:
     """Find out if the payload (bytes) contains PGP/inline markers."""
-    return PGP_INLINE_BEGIN in payload and PGP_INLINE_END in payload
+    if isinstance(payload, bytes):
+        return PGP_INLINE_BEGIN in payload and PGP_INLINE_END in payload
+    elif isinstance(payload, str):
+        return PGP_INLINE_BEGIN_S in payload and PGP_INLINE_END_S in payload
+    else:
+        raise TypeError('Expected str or bytes')
 
 
 def is_message_pgp_inline(message: Message) -> bool:

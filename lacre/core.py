@@ -28,6 +28,7 @@ import copy
 import email
 import email.message
 import email.utils
+from email.contentmanager import raw_data_manager
 from email.policy import SMTPUTF8
 import GnuPG
 import os
@@ -332,20 +333,25 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
 
     # Use this just to generate a MIME boundary string.
     junk_msg = MIMEMultipart()
-    junk_str = junk_msg.as_string()  # WTF!  Without this, get_boundary() will return 'None'!
+    _ = junk_msg.as_string()  # WTF!  Without this, get_boundary() will return 'None'!
     boundary = junk_msg.get_boundary()
 
     # This also modifies the boundary in the body of the message, ie it gets parsed.
     if 'Content-Type' in message:
-        message.replace_header('Content-Type', f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""+text.EOL)
+        message.replace_header('Content-Type', _multipart_encrypted_with_boundary(boundary)+text.EOL)
     else:
-        message['Content-Type'] = f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""+text.EOL
+        message['Content-Type'] = _multipart_encrypted_with_boundary(boundary)+text.EOL
 
     return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested)]
 
 
+def _multipart_encrypted_with_boundary(boundary):
+    return f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""
+
+
 def _encrypt_payload(payload, gpg_to_cmdline, check_nested=True):
-    raw_payload = payload.get_payload(decode=True)
+    raw_payload = raw_data_manager.get_content(payload)
+    LOG.debug('Got raw payload: %s (%s); original was: %s', raw_payload, type(raw_payload), payload)
     if check_nested and text.is_payload_pgp_inline(raw_payload):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
         return payload
