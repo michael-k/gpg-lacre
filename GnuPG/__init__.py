@@ -171,14 +171,23 @@ class GPGEncryptor:
 
     def encrypt(self):
         """Feed GnuPG with the message."""
-        p = subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, text=True)
+        p = self._popen()
         encdata, err = p.communicate(input=self._message)
         if p.returncode != 0:
             LOG.debug('Errors: %s', err)
             details = parse_status(err)
             raise EncryptionException(details['issue'], details['recipient'], details['cause'])
         return (encdata, p.returncode)
+
+    def _popen(self):
+        if self._charset:
+            return subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    encoding=self._charset)
+        else:
+            return subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+
 
     def _command(self):
         cmd = _build_command(self._keyhome, "--trust-model", "always", "--status-fd", "2", "--batch", "--yes", "--pgp7", "--no-secmem-warning", "-a", "-e")
