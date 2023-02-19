@@ -321,42 +321,38 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
 
         encrypted_part.set_payload(copy_encrypted.get_payload())
 
-        _set_content_type(message, boundary)
+        _set_type_and_boundary_2(message, boundary)
 
         return [pgp_ver_part, encrypted_part]
     else:
         processed_payloads = _generate_message_from_payloads(message)
         encrypted_part.set_payload(processed_payloads.as_string())
 
-        _set_content_type(message, boundary)
+        _set_type_and_boundary_2(message, boundary)
 
         return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, False)]
 
 
 def _make_boundary():
     junk_msg = MIMEMultipart()
-    _ = junk_msg.as_string()  # WTF!  Without this, get_boundary() will return 'None'!
+    # XXX See EmailTest.test_boundary_generated_after_as_string_call.
+    _ = junk_msg.as_string()
     return junk_msg.get_boundary()
 
 
-def _set_content_type(message: email.message.Message, boundary: str):
-    if 'Content-Type' in message:
-        message.replace_header('Content-Type', _multipart_encrypted_with_boundary(boundary)+text.EOL)
-    else:
-        message['Content-Type'] = _multipart_encrypted_with_boundary(boundary)+text.EOL
-
-
-def _multipart_encrypted_with_boundary(boundary):
-    return f"multipart/encrypted; protocol=\"application/pgp-encrypted\"; boundary=\"{boundary}\""
+def _set_type_and_boundary_2(message: email.message.Message, boundary):
+    message.set_type('multipart/encrypted')
+    message.set_param('protocol', 'application/pgp-encrypted')
+    message.set_param('boundary', boundary)
 
 
 def _encrypt_payload(payload: email.message.Message, recipients, check_nested=True, **kwargs):
     raw_payload = raw_data_manager.get_content(payload)
-    LOG.debug('Got raw_payload (%s; %s): %s. Message: %s',
+    LOG.debug('About to encrypt raw payload (%s; %s): %s',
               type(raw_payload),
               payload.get_content_type(),
-              raw_payload,
-              payload)
+              raw_payload)
+    LOG.debug('Encrypting message: %s', payload)
     if check_nested and text.is_payload_pgp_inline(raw_payload):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
         return payload
@@ -364,8 +360,7 @@ def _encrypt_payload(payload: email.message.Message, recipients, check_nested=Tr
     gpg = _make_encryptor(raw_payload, recipients)
 
     gpg.update(raw_payload)
-    encrypted_data, returncode = gpg.encrypt()
-    LOG.debug("Return code from encryption=%d (0 indicates success)." % returncode)
+    encrypted_data, exit_code = gpg.encrypt()
 
     payload.set_payload(encrypted_data)
     isAttachment = payload.get_param('attachment', None, 'Content-Disposition') is not None
