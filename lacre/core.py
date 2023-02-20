@@ -300,7 +300,7 @@ def _encrypt_all_payloads_inline(message: email.message.Message, gpg_to_cmdline)
 def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
     # Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
     pgp_ver_part = email.message.Message()
-    pgp_ver_part.set_payload("Version: 1"+text.EOL)
+    pgp_ver_part.set_payload('Version: 1' + text.EOL)
     pgp_ver_part.set_type("application/pgp-encrypted")
     pgp_ver_part.set_param('PGP/MIME version identification', "", 'Content-Description')
 
@@ -317,8 +317,8 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
 
     if isinstance(message.get_payload(), str):
         msg_copy = copy.deepcopy(message)
+        _prepend_header(msg_copy)
         copy_encrypted = _encrypt_payload(msg_copy, gpg_to_cmdline, True)
-
         encrypted_part.set_payload(copy_encrypted.get_payload())
 
         _set_type_and_boundary_2(message, boundary)
@@ -331,6 +331,16 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
         _set_type_and_boundary_2(message, boundary)
 
         return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, False)]
+
+
+def _prepend_header(message: email.message.Message):
+    # XXX Email module discards first line, so we need to insert something to
+    # be discarded.
+
+    additionalSubHeader = ''
+    if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
+        additionalSubHeader = "Content-Type: " + message['Content-Type'] + text.EOL
+    message.set_payload(additionalSubHeader + text.EOL + message.get_payload())
 
 
 def _make_boundary():
