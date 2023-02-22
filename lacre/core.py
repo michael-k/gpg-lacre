@@ -28,12 +28,10 @@ import copy
 import email
 import email.message
 import email.utils
-from email.contentmanager import raw_data_manager
 from email.policy import SMTPUTF8
 import GnuPG
 import os
 import smtplib
-import sys
 import asyncio
 
 # imports for S/MIME
@@ -321,14 +319,14 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
         copy_encrypted = _encrypt_payload(msg_copy, gpg_to_cmdline, True)
         encrypted_part.set_payload(copy_encrypted.get_payload())
 
-        _set_type_and_boundary_2(message, boundary)
+        _set_type_and_boundary(message, boundary)
 
         return [pgp_ver_part, encrypted_part]
     else:
         processed_payloads = _generate_message_from_payloads(message)
         encrypted_part.set_payload(processed_payloads.as_string())
 
-        _set_type_and_boundary_2(message, boundary)
+        _set_type_and_boundary(message, boundary)
 
         return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, False)]
 
@@ -350,19 +348,19 @@ def _make_boundary():
     return junk_msg.get_boundary()
 
 
-def _set_type_and_boundary_2(message: email.message.Message, boundary):
+def _set_type_and_boundary(message: email.message.Message, boundary):
     message.set_type('multipart/encrypted')
     message.set_param('protocol', 'application/pgp-encrypted')
     message.set_param('boundary', boundary)
 
 
 def _encrypt_payload(payload: email.message.Message, recipients, check_nested=True, **kwargs):
-    raw_payload = raw_data_manager.get_content(payload)
+    raw_payload = payload.get_payload(decode=True)
     LOG.debug('About to encrypt raw payload (%s; %s): %s',
               type(raw_payload),
               payload.get_content_type(),
               raw_payload)
-    LOG.debug('Encrypting message: %s', payload)
+
     if check_nested and text.is_payload_pgp_inline(raw_payload):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
         return payload
