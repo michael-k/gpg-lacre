@@ -52,7 +52,8 @@ class EncryptionException(Exception):
 
 
 def _build_command(key_home, *args, **kwargs):
-    cmd = ["gpg", '--homedir', key_home] + list(args)
+    cmd = ["gpg", '--homedir', key_home]
+    cmd.extend(args)
     return cmd
 
 
@@ -188,9 +189,15 @@ class GPGEncryptor:
             return subprocess.Popen(self._command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE)
 
-
     def _command(self):
-        cmd = _build_command(self._keyhome, "--trust-model", "always", "--status-fd", "2", "--batch", "--yes", "--pgp7", "--no-secmem-warning", "-a", "-e")
+        cmd = _build_command(self._keyhome,
+                             "--trust-model", "always",
+                             "--status-fd", "2",
+                             "--batch",
+                             "--yes",
+                             "--pgp7",
+                             "--no-secmem-warning",
+                             "-a", "-e")
 
         # add recipients
         for recipient in self._recipients:
@@ -202,7 +209,7 @@ class GPGEncryptor:
             cmd.append("--comment")
             cmd.append('Charset: ' + self._charset)
 
-        LOG.debug(f'Built command: {cmd!r}')
+        LOG.debug('Built command: %s', cmd)
         return cmd
 
 
