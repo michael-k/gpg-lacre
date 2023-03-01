@@ -4,7 +4,6 @@ import logging
 import lacre
 from lacre.text import DOUBLE_EOL_BYTES
 import lacre.config as conf
-from GnuPG import EncryptionException
 import sys
 from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
@@ -25,6 +24,7 @@ conf.load_config()
 lacre.init_logging(conf.get_item("logging", "config"))
 LOG = logging.getLogger('lacre.daemon')
 
+from GnuPG import EncryptionException
 import lacre.core as gate
 import lacre.keyring as kcache
 from lacre.mailop import KeepIntact
