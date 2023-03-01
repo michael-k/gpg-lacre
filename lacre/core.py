@@ -297,12 +297,12 @@ def _encrypt_all_payloads_inline(message: email.message.Message, gpg_to_cmdline)
 
 def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
     # Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
-    pgp_ver_part = email.message.Message()
+    pgp_ver_part = email.message.MIMEPart()
     pgp_ver_part.set_payload('Version: 1' + text.EOL)
     pgp_ver_part.set_type("application/pgp-encrypted")
     pgp_ver_part.set_param('PGP/MIME version identification', "", 'Content-Description')
 
-    encrypted_part = email.message.Message()
+    encrypted_part = email.message.MIMEPart()
     encrypted_part.set_type("application/octet-stream")
     encrypted_part.set_param('name', "encrypted.asc")
     encrypted_part.set_param('OpenPGP encrypted message', "", 'Content-Description')
@@ -314,14 +314,12 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
     boundary = _make_boundary()
 
     if isinstance(message.get_payload(), str):
-        msg_copy = copy.deepcopy(message)
-        _prepend_header(msg_copy)
-        copy_encrypted = _encrypt_payload(msg_copy, gpg_to_cmdline, True)
-        encrypted_part.set_payload(copy_encrypted.get_payload())
+        wrapped_payload = _rewrap_payload(message)
+        encrypted_part.set_payload(wrapped_payload.as_string())
 
         _set_type_and_boundary(message, boundary)
 
-        return [pgp_ver_part, encrypted_part]
+        return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, True)]
     else:
         processed_payloads = _generate_message_from_payloads(message)
         encrypted_part.set_payload(processed_payloads.as_string())
@@ -331,14 +329,20 @@ def _encrypt_all_payloads_mime(message: email.message.Message, gpg_to_cmdline):
         return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, False)]
 
 
-def _prepend_header(message: email.message.Message):
-    # XXX Email module discards first line, so we need to insert something to
-    # be discarded.
+def _rewrap_payload(message: email.message.Message) -> email.message.MIMEPart:
+    # In PGP/MIME (RFC 3156), the payload has to be a valid MIME entity.  In
+    # other words, we need to wrap text/plain message's payload in a new MIME
+    # entity.
 
-    additionalSubHeader = ''
-    if 'Content-Type' in message and not message['Content-Type'].startswith('multipart'):
-        additionalSubHeader = "Content-Type: " + message['Content-Type'] + text.EOL
-    message.set_payload(additionalSubHeader + text.EOL + message.get_payload())
+    pld = email.message.MIMEPart()
+    pld.set_payload(message.get_payload())
+    pld.set_type(pld.get_content_type())
+
+    cs = message.get_param('charset', None, 'Content-Type')
+    if cs:
+        pld.set_param('charset', cs)
+
+    return pld
 
 
 def _make_boundary():
@@ -356,10 +360,8 @@ def _set_type_and_boundary(message: email.message.Message, boundary):
 
 def _encrypt_payload(payload: email.message.Message, recipients, check_nested=True, **kwargs):
     raw_payload = payload.get_payload(decode=True)
-    LOG.debug('About to encrypt raw payload (%s; %s): %s',
-              type(raw_payload),
-              payload.get_content_type(),
-              raw_payload)
+    LOG.debug('About to encrypt raw payload: %s', raw_payload)
+    LOG.debug('Original message: %s', payload)
 
     if check_nested and text.is_payload_pgp_inline(raw_payload):
         LOG.debug("Message is already pgp encrypted. No nested encryption needed.")
