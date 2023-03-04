@@ -75,13 +75,32 @@ class EmailParsingTest(unittest.TestCase):
         rawmsg = "From: alice@lacre.io\r\n" \
           + "To: bob@lacre.io\r\n" \
           + "Subject: Test message\r\n" \
+          + "Content-Type: text/plain\r\n" \
+          + "Content-Transfer-Encoding: base64\r\n" \
           + "\r\n" \
-          + "Test message from Alice to Bob.\r\n"
+          + "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n"
 
         parsed = email.message_from_string(rawmsg)
 
-        self.assertEqual(parsed.get_payload(), "Test message from Alice to Bob.\r\n")
-        self.assertEqual(parsed.get_payload(decode=True), b"Test message from Alice to Bob.\r\n")
+        self.assertEqual(parsed.get_payload(decode=False),
+                         "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n")
+        self.assertEqual(parsed.get_payload(decode=True),
+                         b"Test message from Alice to Bob.\n")
+
+    def test_headers_only_returns_bytes_payload(self):
+        rawmsg = b"From: alice@lacre.io\r\n" \
+          + b"To: bob@lacre.io\r\n" \
+          + b"Subject: Test message\r\n" \
+          + b"Content-Type: text/plain\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n"
+
+        parser = email.parser.BytesHeaderParser()
+        parsed = parser.parsebytes(rawmsg)
+
+        self.assertEqual(parsed.get_payload(decode=False), "SGVsbG8sIFdvcmxkIQo=\r\n")
+        self.assertEqual(parsed.get_payload(decode=True), b"Hello, World!\n")
 
 
 class EmailTest(unittest.TestCase):
