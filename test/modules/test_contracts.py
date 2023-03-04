@@ -55,6 +55,7 @@ class EmailParsingTest(unittest.TestCase):
 
         parsed = email.message_from_bytes(rawmsg)
 
+        self.assertEqual(parsed["From"], "alice@lacre.io")
         self.assertEqual(parsed.get_payload(), "Test message from Alice to Bob.\r\n")
         self.assertEqual(parsed.get_payload(decode=True), b"Test message from Alice to Bob.\r\n")
 
@@ -71,7 +72,7 @@ class EmailParsingTest(unittest.TestCase):
         self.assertEqual(parsed["To"], "bob@lacre.io")
         self.assertEqual(parsed["Subject"], "Test message")
 
-    def test_str_message_payload_decoded_produces_bytes(self):
+    def test_str_base64_payload(self):
         rawmsg = "From: alice@lacre.io\r\n" \
           + "To: bob@lacre.io\r\n" \
           + "Subject: Test message\r\n" \
@@ -101,6 +102,20 @@ class EmailParsingTest(unittest.TestCase):
 
         self.assertEqual(parsed.get_payload(decode=False), "SGVsbG8sIFdvcmxkIQo=\r\n")
         self.assertEqual(parsed.get_payload(decode=True), b"Hello, World!\n")
+
+    def test_headers_only_produces_single_payload_for_multipart(self):
+        msg = None
+        with open('test/msgin/utf8-alternative.msg', 'rb') as f:
+            p = email.parser.BytesHeaderParser()
+            msg = p.parse(f)
+
+        payload = msg.get_payload()
+
+        # Taken from test/msgin/utf8-alternative.msg:
+        message_boundary = '6s7R3c0y2W8qiD7cU3iWyXcw'
+
+        self.assertIsInstance(payload, str)
+        self.assertTrue(message_boundary in payload)
 
 
 class EmailTest(unittest.TestCase):

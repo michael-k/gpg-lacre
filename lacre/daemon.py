@@ -9,6 +9,7 @@ from aiosmtpd.controller import Controller
 from aiosmtpd.smtp import Envelope
 import asyncio
 import email
+from email.policy import SMTPUTF8
 import time
 from watchdog.observers import Observer
 
@@ -43,7 +44,8 @@ class MailEncryptionProxy:
         try:
             keys = await self._keyring.freeze_identities()
             LOG.debug('Parsing message: %s', self._beginning(envelope))
-            message = email.message_from_bytes(envelope.original_content)
+            message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
+            LOG.debug('Parsed into %s: %s', type(message), repr(message))
 
             if message.defects:
                 # Sometimes a weird message cannot be encoded back and
