@@ -3,19 +3,19 @@
 import sys
 import re
 import logging
-from email.message import Message
+from email.message import EmailMessage
 
 
 # The standard way to encode line-ending in email:
-EOL = "\r\n"
-EOL_BYTES = b"\r\n"
-DOUBLE_EOL_BYTES = EOL_BYTES*2
+EOL = b"\r\n"
+EOL_S = EOL.decode()
+DOUBLE_EOL_BYTES = EOL*2
 
-PGP_INLINE_BEGIN = EOL_BYTES + b"-----BEGIN PGP MESSAGE-----" + EOL_BYTES
-PGP_INLINE_END = EOL_BYTES + b"-----END PGP MESSAGE-----" + EOL_BYTES
+PGP_BEGIN = b"-----BEGIN PGP MESSAGE-----"
+PGP_END = b"-----END PGP MESSAGE-----"
 
-PGP_INLINE_BEGIN_S = EOL + "-----BEGIN PGP MESSAGE-----" + EOL
-PGP_INLINE_END_S = EOL + "-----END PGP MESSAGE-----" + EOL
+PGP_BEGIN_S = PGP_BEGIN.decode()
+PGP_END_S = PGP_END.decode()
 
 
 LOG = logging.getLogger(__name__)
@@ -79,14 +79,22 @@ def choose_sanitizer(mail_case_insensitive: bool):
 def is_payload_pgp_inline(payload) -> bool:
     """Find out if the payload (bytes) contains PGP/inline markers."""
     if isinstance(payload, bytes):
-        return PGP_INLINE_BEGIN in payload and PGP_INLINE_END in payload
+        return payload.startswith(PGP_BEGIN) and _ends_with(payload, PGP_END)
     elif isinstance(payload, str):
-        return PGP_INLINE_BEGIN_S in payload and PGP_INLINE_END_S in payload
+        return payload.startswith(PGP_BEGIN_S) and _ends_with(payload, PGP_END_S)
     else:
         raise TypeError('Expected str or bytes')
 
 
-def is_message_pgp_inline(message: Message) -> bool:
+def _ends_with(payload, marker) -> bool:
+    # Length of the span at the end of the payload we want to inspect should
+    # include CRLF, CR or LF, so make it slightly larger than the marker
+    # itself.
+    span = len(marker) + 2
+    return marker in payload[-span:]
+
+
+def is_message_pgp_inline(message: EmailMessage) -> bool:
     """Find out if a message is already PGP-Inline encrypted."""
     if message.is_multipart() or isinstance(message.get_payload(), list):
         # more than one payload, check each one of them
