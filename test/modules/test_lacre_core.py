@@ -1,12 +1,12 @@
 import lacre.core
-from email.message import Message
+from email.message import EmailMessage
 
 import unittest
 
 
 class LacreCoreTest(unittest.TestCase):
     def test_attachment_handling(self):
-        m = Message()
+        m = EmailMessage()
         m.set_payload('This is a payload')
         m.set_param('attachment', '', 'Content-Disposition')
         m.set_param('filename', 'foo', 'Content-Disposition')
@@ -16,7 +16,7 @@ class LacreCoreTest(unittest.TestCase):
         self.assertEqual(m.get_filename(), 'foo.pgp')
 
     def test_attachment_handling_2(self):
-        m = Message()
+        m = EmailMessage()
         m.set_payload('This is a payload')
         m.set_param('attachment', '', 'Content-Disposition')
         m.set_param('name', 'quux', 'Content-Type')
@@ -26,7 +26,7 @@ class LacreCoreTest(unittest.TestCase):
         self.assertEqual(m.get_filename(), 'quux.pgp')
 
     def test_payload_wrapping(self):
-        m = Message()
+        m = EmailMessage()
         m.set_payload('This is a payload.\r\n'
                       + '\r\n'
                       + 'It has two paragraphs.\r\n')
