@@ -19,6 +19,7 @@
 #
 
 import email
+from email.policy import SMTPUTF8
 import sys
 import time
 import logging
@@ -42,7 +43,7 @@ if missing_params:
 
 # Read e-mail from stdin, parse it
 raw = sys.stdin.read()
-raw_message = email.message_from_string(raw)
+raw_message = email.message_from_string(raw, policy=SMTPUTF8)
 from_addr = raw_message['From']
 # Read recipients from the command-line
 to_addrs = sys.argv[1:]
