@@ -79,6 +79,9 @@ def _gpg_encrypt(raw_message, recipients):
 
 
 def _sort_gpg_recipients(gpg_to):
+    mime = RecipientList()
+    inline = RecipientList()
+
     recipients_mime = list()
     keys_mime = list()
 
@@ -92,9 +95,11 @@ def _sort_gpg_recipients(gpg_to):
         if conf.config_item_equals('pgp_style', rcpt.email(), 'mime'):
             recipients_mime.append(rcpt.email())
             keys_mime.extend(rcpt.key().split(','))
+            mime += rcpt
         elif conf.config_item_equals('pgp_style', rcpt.email(), 'inline'):
             recipients_inline.append(rcpt.email())
             keys_inline.extend(rcpt.key().split(','))
+            inline += rcpt
         else:
             # Log message only if an unknown style is defined
             if conf.config_item_set('pgp_style', rcpt.email()):
@@ -105,9 +110,14 @@ def _sort_gpg_recipients(gpg_to):
             if default_to_pgp_mime:
                 recipients_mime.append(rcpt.email())
                 keys_mime.extend(rcpt.key().split(','))
+                mime += rcpt
             else:
                 recipients_inline.append(rcpt.email())
                 keys_inline.extend(rcpt.key().split(','))
+                inline += rcpt
+
+    # mime = RecipientList(recipients_mime, keys_mime)
+    # inline = RecipientList(recipients_inline, keys_inline)
 
     return recipients_mime, keys_mime, recipients_inline, keys_inline
 
@@ -179,6 +189,32 @@ class GpgRecipient:
     def key(self):
         """Return this recipient's key ID."""
         return self._right
+
+
+class RecipientList:
+    """Encalsulates two lists of recipients.
+
+    First list contains addresses, the second - GPG identities.
+    """
+
+    def __init__(self, recipients=[], keys=[]):
+        """Initialise lists of recipients and identities."""
+        self._recipients = recipients
+
+    def emails(self):
+        """Return list of recipients."""
+        for r in self._recipients:
+            yield r.email()
+
+    def keys(self):
+        """Return list of GPG identities."""
+        for r in self._recipients:
+            yield r.key()
+
+    def __iadd__(self, recipient: GpgRecipient):
+        """Append a recipient."""
+        self._recipients.append(recipient)
+        return self
 
 
 def _identify_gpg_recipients(recipients, keys: kcache.KeyCache):
@@ -297,7 +333,7 @@ def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline):
 def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline):
     # Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
     pgp_ver_part = MIMEPart()
-    pgp_ver_part.set_payload('Version: 1' + text.EOL_S)
+    pgp_ver_part.set_content('Version: 1' + text.EOL_S)
     pgp_ver_part.set_type("application/pgp-encrypted")
     pgp_ver_part.set_param('PGP/MIME version identification', "", 'Content-Description')
 
