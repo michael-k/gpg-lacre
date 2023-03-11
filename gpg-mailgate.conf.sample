@@ -8,16 +8,6 @@ add_header = yes
 # This means gpg-mailgate won't automatically detect PGP recipients for encrypting
 enc_keymap_only = no
 
-# Whether we should only decrypt emails if they are explicitly defined in
-# the key mappings below ([dec_keymap] section)
-# This means gpg-mailgate won't automatically detect PGP recipients for decrypting
-dec_keymap_only = no
-
-# If dec_keymap_only is set to yes and recipients have private keys present for decrypting
-# but are not on in the keymap, this can cause that mails for them will be
-# encrypted. Set this to no if you want this behaviour.
-failsave_dec = yes
-
 # Convert encrypted text/plain email to MIME-attached encrypt style.
 # (Default is to use older inline-style PGP encoding.)
 mime_conversion = yes
@@ -28,20 +18,6 @@ mime_conversion = yes
 # Disabling the compatibility is more convenient to users. So if you know that your
 # recipients all ignore the RFC you could this to yes.
 mail_case_insensitive = no
-
-# This setting disables PGP/INLINE decryption completely. However,
-# PGP/MIME encrypted mails will still be decrypted if possible. PGP/INLINE
-# decryption has to be seen as experimental and could have some negative
-# side effects. So if you want to take the risk set this to no.
-no_inline_dec = yes
-
-# Here you can define a regex for which the gateway should try to decrypt mails.
-# It could be used to define that decryption should be used for a wider range of
-# mail addresses e.g. a whole domain. No key is needed here. It is even active if 
-# dec_keymap is set to yes. If this feature should be disabled, don't leave it blank.
-# Set it to None. For further regex information please have a look at
-# https://docs.python.org/2/library/re.html
-dec_regex = None
 
 [gpg]
 # the directory where gpg-mailgate public keys are stored
