@@ -26,6 +26,9 @@ documentation.
 
 import email
 import email.mime.multipart
+from email.message import EmailMessage
+from email.policy import SMTP
+
 import unittest
 from configparser import RawConfigParser
 
@@ -81,12 +84,55 @@ class EmailParsingTest(unittest.TestCase):
           + "\r\n" \
           + "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n"
 
-        parsed = email.message_from_string(rawmsg)
+        parsed: EmailMessage = email.message_from_string(rawmsg, policy=SMTP)
 
         self.assertEqual(parsed.get_payload(decode=False),
                          "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n")
         self.assertEqual(parsed.get_payload(decode=True),
                          b"Test message from Alice to Bob.\n")
+        self.assertEqual(parsed.get_content(),
+                         "Test message from Alice to Bob.\n")
+
+    def test_bytes_base64_payload(self):
+        rawmsg = b"From: alice@lacre.io\r\n" \
+          + b"To: bob@lacre.io\r\n" \
+          + b"Subject: Test message\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n"
+
+        parsed: EmailMessage = email.message_from_bytes(rawmsg, policy=SMTP)
+
+        self.assertEqual(parsed.get_payload(decode=False),
+                         "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n")
+        self.assertEqual(parsed.get_payload(decode=True),
+                         b"Test message from Alice to Bob.\n")
+        self.assertEqual(parsed.get_content(),
+                         b"Test message from Alice to Bob.\n")
+
+    def test_multipart_parser(self):
+        rawmsg = b"Content-Type: multipart/mixed; boundary=XXXXXXXX\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX--\r\n"
+
+        parsed: EmailMessage = email.message_from_bytes(rawmsg, policy=SMTP)
+
+        self.assertRaises(KeyError, parsed.get_content)
+        self.assertEqual(parsed.get_payload(0).get_content(),
+                         b'Test message from Alice to Bob.\n')
+        self.assertEqual(parsed.get_payload(1),
+                         b'Hello, World!\n')
 
     def test_headers_only_returns_bytes_payload(self):
         rawmsg = b"From: alice@lacre.io\r\n" \
