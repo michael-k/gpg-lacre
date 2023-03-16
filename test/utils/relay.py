@@ -41,6 +41,9 @@ def receive_and_confirm(session):
     session.recv(BUFFER_SIZE)
     session.sendall(ok())
 
+def receive_and_ignore(session):
+    session.recv(BUFFER_SIZE)
+
 def localhost_at(port):
     return ('127.0.0.1', port)
 
@@ -65,8 +68,7 @@ def serve(port) -> bytes:
     receive_and_confirm(conn)                       # Ignore sender address
     receive_and_confirm(conn)                       # Ignore recipient address
 
-    b = conn.recv(BUFFER_SIZE)
-    logging.debug('Got data: %s', repr(b))
+    receive_and_ignore(conn)
     conn.sendall(provide_message())
 
     # Consume until we get <CR><LF>.<CR><LF>, the end-of-message marker.
