@@ -131,7 +131,7 @@ class EmailParsingTest(unittest.TestCase):
         self.assertRaises(KeyError, parsed.get_content)
         self.assertEqual(parsed.get_payload(0).get_content(),
                          b'Test message from Alice to Bob.\n')
-        self.assertEqual(parsed.get_payload(1),
+        self.assertEqual(parsed.get_payload(1).get_content(),
                          b'Hello, World!\n')
 
     def test_headers_only_returns_bytes_payload(self):
