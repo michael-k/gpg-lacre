@@ -61,7 +61,7 @@ class MailEncryptionProxy:
                 LOG.debug(f"Sending mail via {operation!r}")
                 try:
                     new_message = operation.perform(message)
-                    gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
+                    gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
                 except EncryptionException:
                     # If the message can't be encrypted, deliver cleartext.
                     LOG.exception('Unable to encrypt message, delivering in cleartext')
@@ -82,7 +82,7 @@ class MailEncryptionProxy:
     def _send_unencrypted(self, operation, message, envelope):
         keep = KeepIntact(operation.recipients())
         new_message = keep.perform(message)
-        gate.send_msg_bytes(new_message, operation.recipients(), envelope.mail_from)
+        gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)

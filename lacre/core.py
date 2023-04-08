@@ -33,7 +33,7 @@ import GnuPG
 import os
 import smtplib
 import asyncio
-from typing import Tuple
+from typing import Tuple, List, AnyStr
 
 # imports for S/MIME
 from M2Crypto import BIO, SMIME, X509
@@ -567,26 +567,7 @@ def _get_first_payload(payloads):
         return payloads
 
 
-def send_msg(message: str, recipients, fromaddr=None):
-    """Send MESSAGE to RECIPIENTS to the mail relay."""
-    global from_addr
-
-    if fromaddr is not None:
-        from_addr = fromaddr
-
-    recipients = [_f for _f in recipients if _f]
-    if recipients:
-        LOG.info(f"Sending email to: {recipients!r}")
-        relay = conf.relay_params()
-        smtp = smtplib.SMTP(relay[0], relay[1])
-        if conf.flag_enabled('relay', 'starttls'):
-            smtp.starttls()
-        smtp.sendmail(from_addr, recipients, message)
-    else:
-        LOG.info("No recipient found")
-
-
-def send_msg_bytes(message: bytes, recipients, fromaddr=None):
+def send_msg(message: AnyStr, recipients: List[str], fromaddr=None):
     """Send MESSAGE to RECIPIENTS to the mail relay."""
     global from_addr
 
@@ -618,14 +599,14 @@ def failover_delivery(message: EmailMessage, recipients):
         LOG.debug('Flat text message, adjusting coding')
         _recode(message)
         b = message.as_bytes(policy=SMTPUTF8)
-        send_msg_bytes(b, recipients)
+        send_msg(b, recipients)
     elif message.get_content_maintype() == 'multipart':
         LOG.debug('Multipart message, adjusting coding of text entities')
         for part in message.iter_parts():
             if part.get_content_maintype() == 'text':
                 _recode(part)
         b = message.as_bytes(policy=SMTPUTF8)
-        send_msg_bytes(b, recipients)
+        send_msg(b, recipients)
     else:
         LOG.warning('No failover strategy, giving up')
 
