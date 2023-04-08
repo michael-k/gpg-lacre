@@ -41,9 +41,8 @@ if missing_params:
     LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
     sys.exit(lacre.EX_CONFIG)
 
-try:
-
 delivered = False
+try:
     # Read e-mail from stdin, parse it
     raw = sys.stdin.read()
     raw_message = email.message_from_string(raw, policy=SMTPUTF8)
