@@ -578,13 +578,9 @@ def send_msg(message: str, recipients, fromaddr=None):
     if recipients:
         LOG.info(f"Sending email to: {recipients!r}")
         relay = conf.relay_params()
-        LOG.debug('Got relay parameters: %s', relay)
         smtp = smtplib.SMTP(relay[0], relay[1])
-        LOG.debug('have session')
         if conf.flag_enabled('relay', 'starttls'):
-            LOG.debug('Issuing STARTTLS')
             smtp.starttls()
-        LOG.debug('sending')
         smtp.sendmail(from_addr, recipients, message)
     else:
         LOG.info("No recipient found")
@@ -601,30 +597,37 @@ def send_msg_bytes(message: bytes, recipients, fromaddr=None):
     if recipients:
         LOG.info(f"Sending email to: {recipients!r}")
         relay = conf.relay_params()
-        LOG.debug('Got relay parameters: %s', relay)
         smtp = smtplib.SMTP(relay[0], relay[1])
-        LOG.debug('have session')
         if conf.flag_enabled('relay', 'starttls'):
-            LOG.debug('Issuing STARTTLS')
             smtp.starttls()
-        LOG.debug('sending')
         smtp.sendmail(from_addr, recipients, message)
     else:
         LOG.info("No recipient found")
 
 
+def _recode(m: EmailMessage):
+    payload = m.get_payload()
+    m.set_content(payload)
+
+
 def failover_delivery(message: EmailMessage, recipients):
     """Try delivering message just one last time."""
     LOG.debug('Failover delivery')
+
     if message.get_content_maintype() == 'text':
-        LOG.debug('Re-packing message content of: %s', message)
-        message.set_content(message.get_payload())
+        LOG.debug('Flat text message, adjusting coding')
+        _recode(message)
         b = message.as_bytes(policy=SMTPUTF8)
-        LOG.debug('Sending... %s', b)
         send_msg_bytes(b, recipients)
-        LOG.debug('Sent!')
+    elif message.get_content_maintype() == 'multipart':
+        LOG.debug('Multipart message, adjusting coding of text entities')
+        for part in message.iter_parts():
+            if part.get_content_maintype() == 'text':
+                _recode(part)
+        b = message.as_bytes(policy=SMTPUTF8)
+        send_msg_bytes(b, recipients)
     else:
-        LOG.warning('No failover strategy')
+        LOG.warning('No failover strategy, giving up')
 
 
 def _is_encrypted(raw_message: EmailMessage):

@@ -43,6 +43,7 @@ if missing_params:
 
 try:
 
+delivered = False
     # Read e-mail from stdin, parse it
     raw = sys.stdin.read()
     raw_message = email.message_from_string(raw, policy=SMTPUTF8)
@@ -55,6 +56,12 @@ try:
     process_t = (time.process_time() - start) * 1000
 
     LOG.info("Message delivered in {process:.2f} ms".format(process=process_t))
+    delivered = True
 except:
     LOG.exception('Could not handle message')
+
+if not delivered:
+    # It seems we weren't able to deliver the message.  In case it was some
+    # silly message-encoding issue that shouldn't bounce the message, we just
+    # try recoding the message body and delivering it.
     core.failover_delivery(raw_message, to_addrs)
