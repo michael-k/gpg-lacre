@@ -117,11 +117,13 @@ class EmailParsingTest(unittest.TestCase):
           + b"--XXXXXXXX\r\n" \
           + b"Content-Type: application/octet-stream\r\n" \
           + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
           + b"VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
           + b"\r\n" \
           + b"--XXXXXXXX\r\n" \
           + b"Content-Type: application/octet-stream\r\n" \
           + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
           + b"SGVsbG8sIFdvcmxkIQo=\r\n" \
           + b"\r\n" \
           + b"--XXXXXXXX--\r\n"
