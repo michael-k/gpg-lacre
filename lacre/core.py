@@ -578,9 +578,13 @@ def send_msg(message: str, recipients, fromaddr=None):
     if recipients:
         LOG.info(f"Sending email to: {recipients!r}")
         relay = conf.relay_params()
+        LOG.debug('Got relay parameters: %s', relay)
         smtp = smtplib.SMTP(relay[0], relay[1])
+        LOG.debug('have session')
         if conf.flag_enabled('relay', 'starttls'):
+            LOG.debug('Issuing STARTTLS')
             smtp.starttls()
+        LOG.debug('sending')
         smtp.sendmail(from_addr, recipients, message)
     else:
         LOG.info("No recipient found")
@@ -597,9 +601,13 @@ def send_msg_bytes(message: bytes, recipients, fromaddr=None):
     if recipients:
         LOG.info(f"Sending email to: {recipients!r}")
         relay = conf.relay_params()
+        LOG.debug('Got relay parameters: %s', relay)
         smtp = smtplib.SMTP(relay[0], relay[1])
+        LOG.debug('have session')
         if conf.flag_enabled('relay', 'starttls'):
+            LOG.debug('Issuing STARTTLS')
             smtp.starttls()
+        LOG.debug('sending')
         smtp.sendmail(from_addr, recipients, message)
     else:
         LOG.info("No recipient found")
