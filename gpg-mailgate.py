@@ -41,15 +41,20 @@ if missing_params:
     LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
     sys.exit(lacre.EX_CONFIG)
 
-# Read e-mail from stdin, parse it
-raw = sys.stdin.read()
-raw_message = email.message_from_string(raw, policy=SMTPUTF8)
-from_addr = raw_message['From']
-# Read recipients from the command-line
-to_addrs = sys.argv[1:]
+try:
 
-# Let's start
-core.deliver_message(raw_message, from_addr, to_addrs)
-process_t = (time.process_time() - start) * 1000
+    # Read e-mail from stdin, parse it
+    raw = sys.stdin.read()
+    raw_message = email.message_from_string(raw, policy=SMTPUTF8)
+    from_addr = raw_message['From']
+    # Read recipients from the command-line
+    to_addrs = sys.argv[1:]
 
-LOG.info("Message delivered in {process:.2f} ms".format(process=process_t))
+    # Let's start
+    core.deliver_message(raw_message, from_addr, to_addrs)
+    process_t = (time.process_time() - start) * 1000
+
+    LOG.info("Message delivered in {process:.2f} ms".format(process=process_t))
+except:
+    LOG.exception('Could not handle message')
+    core.failover_delivery(raw_message, to_addrs)

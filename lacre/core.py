@@ -605,6 +605,20 @@ def send_msg_bytes(message: bytes, recipients, fromaddr=None):
         LOG.info("No recipient found")
 
 
+def failover_delivery(message: EmailMessage, recipients):
+    """Try delivering message just one last time."""
+    LOG.debug('Failover delivery')
+    if message.get_content_maintype() == 'text':
+        LOG.debug('Re-packing message content of: %s', message)
+        message.set_content(message.get_payload())
+        b = message.as_bytes(policy=SMTPUTF8)
+        LOG.debug('Sending... %s', b)
+        send_msg_bytes(b, recipients)
+        LOG.debug('Sent!')
+    else:
+        LOG.warning('No failover strategy')
+
+
 def _is_encrypted(raw_message: EmailMessage):
     if raw_message.get_content_type() == 'multipart/encrypted':
         return True
