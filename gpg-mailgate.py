@@ -64,4 +64,7 @@ if not delivered:
     # It seems we weren't able to deliver the message.  In case it was some
     # silly message-encoding issue that shouldn't bounce the message, we just
     # try recoding the message body and delivering it.
-    core.failover_delivery(raw_message, to_addrs)
+    try:
+        core.failover_delivery(raw_message, to_addrs)
+    except:
+        LOG.exception('Failover delivery failed too')
