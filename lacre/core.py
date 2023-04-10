@@ -30,19 +30,16 @@ from email.message import EmailMessage, MIMEPart
 import email.utils
 from email.policy import SMTPUTF8
 import GnuPG
-import os
-import smtplib
 import asyncio
-from typing import Tuple, List, AnyStr
-
-# imports for S/MIME
-from M2Crypto import BIO, SMIME, X509
+from typing import Tuple
 
 import logging
 import lacre.text as text
 import lacre.config as conf
 import lacre.keyring as kcache
 import lacre.recipients as recpt
+import lacre.smime as smime
+from lacre.transport import send_msg, register_sender, SendFrom
 from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt
 
 
@@ -289,92 +286,6 @@ def _append_gpg_extension(attachment):
         attachment.set_param('name', pgpFilename)
 
 
-def _smime_encrypt(raw_message, recipients):
-    global LOG
-    global from_addr
-
-    if not conf.config_item_set('smime', 'cert_path'):
-        LOG.info("No valid path for S/MIME certs found in config file. S/MIME encryption aborted.")
-        return recipients
-
-    cert_path = conf.get_item('smime', 'cert_path')+"/"
-    s = SMIME.SMIME()
-    sk = X509.X509_Stack()
-    smime_to = list()
-    unsmime_to = list()
-
-    for addr in recipients:
-        cert_and_email = _get_cert_for_email(addr, cert_path)
-
-        if not (cert_and_email is None):
-            (to_cert, normal_email) = cert_and_email
-            LOG.debug("Found cert " + to_cert + " for " + addr + ": " + normal_email)
-            smime_to.append(addr)
-            x509 = X509.load_cert(to_cert, format=X509.FORMAT_PEM)
-            sk.push(x509)
-        else:
-            unsmime_to.append(addr)
-
-    if smime_to:
-        s.set_x509_stack(sk)
-        s.set_cipher(SMIME.Cipher('aes_192_cbc'))
-        p7 = s.encrypt(BIO.MemoryBuffer(raw_message.as_string()))
-        # Output p7 in mail-friendly format.
-        out = BIO.MemoryBuffer()
-        out.write('From: ' + from_addr + text.EOL_S)
-        out.write('To: ' + raw_message['To'] + text.EOL_S)
-        if raw_message['Cc']:
-            out.write('Cc: ' + raw_message['Cc'] + text.EOL_S)
-        if raw_message['Bcc']:
-            out.write('Bcc: ' + raw_message['Bcc'] + text.EOL_S)
-        if raw_message['Subject']:
-            out.write('Subject: ' + raw_message['Subject'] + text.EOL_S)
-
-        if conf.config_item_equals('default', 'add_header', 'yes'):
-            out.write('X-GPG-Mailgate: Encrypted by GPG Mailgate' + text.EOL_S)
-
-        s.write(out, p7)
-
-        LOG.debug(f"Sending message from {from_addr} to {smime_to}")
-
-        send_msg(out.read(), smime_to)
-    if unsmime_to:
-        LOG.debug(f"Unable to find valid S/MIME certificates for {unsmime_to}")
-
-    return unsmime_to
-
-
-def _get_cert_for_email(to_addr, cert_path):
-    insensitive = conf.config_item_equals('default', 'mail_case_insensitive', 'yes')
-
-    LOG.info(f'Retrieving certificate for {to_addr!r} from {cert_path!r}, sensitivity={insensitive!r}')
-
-    files_in_directory = os.listdir(cert_path)
-    for filename in files_in_directory:
-        file_path = os.path.join(cert_path, filename)
-        if not os.path.isfile(file_path):
-            continue
-
-        if insensitive:
-            if filename.casefold() == to_addr:
-                return (file_path, to_addr)
-        else:
-            if filename == to_addr:
-                return (file_path, to_addr)
-
-    # support foo+ignore@bar.com -> foo@bar.com
-    LOG.info(f"An email with topic? {to_addr}")
-    (fixed_up_email, topic) = text.parse_delimiter(to_addr)
-    LOG.info(f'Got {fixed_up_email!r} and {topic!r}')
-    if topic is None:
-        # delimiter not used
-        LOG.info('Topic not found')
-        return None
-    else:
-        LOG.info(f"Looking up certificate for {fixed_up_email} after parsing {to_addr}")
-        return _get_cert_for_email(fixed_up_email, cert_path)
-
-
 def _generate_message_from_payloads(payloads, message=None):
     if message is None:
         message = email.mime.multipart.MIMEMultipart(payloads.get_content_subtype())
@@ -395,46 +306,28 @@ def _get_first_payload(payloads):
         return payloads
 
 
-def send_msg(message: AnyStr, recipients: List[str], fromaddr=None):
-    """Send MESSAGE to RECIPIENTS to the mail relay."""
-    global from_addr
-
-    if fromaddr is not None:
-        from_addr = fromaddr
-
-    recipients = [_f for _f in recipients if _f]
-    if recipients:
-        LOG.info(f"Sending email to: {recipients!r}")
-        relay = conf.relay_params()
-        smtp = smtplib.SMTP(relay[0], relay[1])
-        if conf.flag_enabled('relay', 'starttls'):
-            smtp.starttls()
-        smtp.sendmail(from_addr, recipients, message)
-    else:
-        LOG.info("No recipient found")
-
-
 def _recode(m: EmailMessage):
     payload = m.get_payload()
     m.set_content(payload)
 
 
-def failover_delivery(message: EmailMessage, recipients):
+def failover_delivery(message: EmailMessage, recipients, from_address):
     """Try delivering message just one last time."""
     LOG.debug('Failover delivery')
 
+    send = SendFrom(from_address)
     if message.get_content_maintype() == 'text':
         LOG.debug('Flat text message, adjusting coding')
         _recode(message)
         b = message.as_bytes(policy=SMTPUTF8)
-        send_msg(b, recipients)
+        send(b, recipients)
     elif message.get_content_maintype() == 'multipart':
         LOG.debug('Multipart message, adjusting coding of text entities')
         for part in message.iter_parts():
             if part.get_content_maintype() == 'text':
                 _recode(part)
         b = message.as_bytes(policy=SMTPUTF8)
-        send_msg(b, recipients)
+        send(b, recipients)
     else:
         LOG.warning('No failover strategy, giving up')
 
@@ -475,19 +368,19 @@ def delivery_plan(recipients, message: EmailMessage, key_cache: kcache.KeyCache)
 
 def deliver_message(raw_message: EmailMessage, from_address, to_addrs):
     """Send RAW_MESSAGE to all TO_ADDRS using the best encryption method available."""
-    global from_addr
-
     # Ugly workaround to keep the code working without too many changes.
-    from_addr = from_address
+    register_sender(from_address)
 
     sanitize = text.choose_sanitizer(conf.get_item('default', 'mail_case_insensitive'))
     recipients_left = [sanitize(recipient) for recipient in to_addrs]
+
+    send = SendFrom(from_address)
 
     # There is no need for nested encryption
     LOG.debug("Seeing if it's already encrypted")
     if _is_encrypted(raw_message):
         LOG.debug("Message is already encrypted. Encryption aborted.")
-        send_msg(raw_message.as_string(), recipients_left)
+        send(raw_message.as_string(), recipients_left)
         return
 
     # Encrypt mails for recipients with known public PGP keys
@@ -498,10 +391,10 @@ def deliver_message(raw_message: EmailMessage, from_address, to_addrs):
 
     # Encrypt mails for recipients with known S/MIME certificate
     LOG.debug("Encrypting with S/MIME")
-    recipients_left = _smime_encrypt(raw_message, recipients_left)
+    recipients_left = smime.encrypt(raw_message, recipients_left, from_address)
     if not recipients_left:
         return
 
     # Send out mail to recipients which are left
     LOG.debug("Sending the rest as text/plain")
-    send_msg(raw_message.as_string(), recipients_left)
+    send(raw_message.as_string(), recipients_left)

@@ -32,7 +32,23 @@ import lacre.text as text
 LOG = logging.getLogger(__name__)
 
 
-class GpgRecipient:
+class Recipient:
+    """Wraps recipient's email."""
+
+    def __init__(self, email):
+        """Initialise the recipient."""
+        self._email = email
+
+    def email(self) -> str:
+        """Return email address of this recipient."""
+        return self._email
+
+    def __str__(self):
+        """Return string representation of this recipient: the email address."""
+        return self._email
+
+
+class GpgRecipient(Recipient):
     """A tuple-like object that contains GPG recipient data."""
 
     def __init__(self, left, right):
@@ -53,7 +69,7 @@ class GpgRecipient:
         """Return textual representation of this GPG Recipient."""
         return f"GpgRecipient({self._left!r}, {self._right!r})"
 
-    def email(self):
+    def email(self) -> str:
         """Return this recipient's email address."""
         return self._left
 

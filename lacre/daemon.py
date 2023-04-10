@@ -13,12 +13,6 @@ from email.policy import SMTPUTF8
 import time
 from watchdog.observers import Observer
 
-# Mail status constants.
-#
-# These are the only values that our mail handler is allowed to return.
-RESULT_OK = '250 OK'
-RESULT_ERROR = '500 Could not process your message'
-
 # Load configuration and init logging, in this order.  Only then can we load
 # the last Lacre module, i.e. lacre.mailgate.
 conf.load_config()
@@ -28,6 +22,7 @@ LOG = logging.getLogger('lacre.daemon')
 from GnuPG import EncryptionException
 import lacre.core as gate
 import lacre.keyring as kcache
+import lacre.transport as xport
 from lacre.mailop import KeepIntact
 
 
@@ -57,32 +52,33 @@ class MailEncryptionProxy:
             if conf.flag_enabled('daemon', 'log_headers'):
                 LOG.info('Message headers: %s', self._extract_headers(message))
 
+            send = xport.SendFrom(envelope.mail_from)
             for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                 LOG.debug(f"Sending mail via {operation!r}")
                 try:
                     new_message = operation.perform(message)
-                    gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
+                    send(new_message, operation.recipients())
                 except EncryptionException:
                     # If the message can't be encrypted, deliver cleartext.
                     LOG.exception('Unable to encrypt message, delivering in cleartext')
                     if not isinstance(operation, KeepIntact):
-                        self._send_unencrypted(operation, message, envelope)
+                        self._send_unencrypted(operation, message, envelope, send)
                     else:
                         LOG.error(f'Cannot perform {operation}')
 
         except:
             LOG.exception('Unexpected exception caught, bouncing message')
-            return RESULT_ERROR
+            return xport.RESULT_ERROR
 
         ellapsed = (time.process_time() - start) * 1000
         LOG.info(f'Message delivered in {ellapsed:.2f} ms')
 
-        return RESULT_OK
+        return xport.RESULT_OK
 
-    def _send_unencrypted(self, operation, message, envelope):
+    def _send_unencrypted(self, operation, message, envelope, send: xport.SendFrom):
         keep = KeepIntact(operation.recipients())
         new_message = keep.perform(message)
-        gate.send_msg(new_message, operation.recipients(), envelope.mail_from)
+        send(new_message, operation.recipients(), envelope.mail_from)
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
