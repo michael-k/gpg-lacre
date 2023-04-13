@@ -143,7 +143,7 @@ def identify_gpg_recipients(recipients, keys: kcache.KeyCache):
     return gpg_recipients, cleartext_recipients
 
 
-def _find_key(recipient, keys, strict_mode):
+def _find_key(recipient, keys: kcache.KeyCache, strict_mode):
     own_key = _try_configured_key(recipient, keys)
     if own_key is not None:
         return GpgRecipient(own_key[0], own_key[1])
@@ -159,7 +159,7 @@ def _find_key(recipient, keys, strict_mode):
     return None
 
 
-def _try_configured_key(recipient, keys):
+def _try_configured_key(recipient, keys: kcache.KeyCache):
     if conf.config_item_set('enc_keymap', recipient):
         key = conf.get_item('enc_keymap', recipient)
         if key in keys:
@@ -170,7 +170,7 @@ def _try_configured_key(recipient, keys):
     return None
 
 
-def _try_direct_key_lookup(recipient, keys, strict_mode):
+def _try_direct_key_lookup(recipient, keys: kcache.KeyCache, strict_mode):
     if strict_mode:
         return None
 
@@ -186,7 +186,7 @@ def _try_direct_key_lookup(recipient, keys, strict_mode):
     return None
 
 
-def _try_configured_domain_key(recipient, keys):
+def _try_configured_domain_key(recipient, keys: kcache.KeyCache):
     parts = recipient.split('@')
     if len(parts) != 2:
         return None

@@ -62,7 +62,7 @@ class KeyCache:
     def __repr__(self):
         """Return text representation of this object."""
         details = ' '.join(self._keys.keys())
-        return f'<KeyCache {details}>'
+        return '<KeyCache %s>' % (details)
 
 
 class KeyRing:
@@ -122,7 +122,7 @@ class KeyRing:
         LOG.info(f'Storing {len(keys)} keys')
         self._keys = keys
 
-    def _read_mod_time(self):
+    def _read_mod_time(self) -> int:
         # (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime)
         #  0     1    2    3      4    5    6     7      8      9
         MTIME = 8
@@ -140,6 +140,10 @@ class KeyRing:
             LOG.debug('Keyring not modified ')
             return False
 
+    def __repr__(self) -> str:
+        """Return text representation of this keyring."""
+        return '<KeyRing path=%s last_mod=%d>' % (self._path, self._last_mod)
+
 
 class KeyringModificationListener(FileSystemEventHandler):
     """A filesystem event listener that triggers key cache reload."""
@@ -150,8 +154,9 @@ class KeyringModificationListener(FileSystemEventHandler):
 
     def handle(self, event: FileSystemEvent):
         """Reload keys upon FS event."""
+        LOG.debug('FS event: %s, %s', event.event_type, event.src_path)
         if 'pubring.kbx' in event.src_path:
-            LOG.debug(f'Reloading on event {event!r}')
+            LOG.info('Reloading %s on event: %s', self._keyring, event)
             self._keyring.reload()
 
     # All methods should do the same: reload the key cache.
