@@ -9,7 +9,7 @@ import lacre.config as conf
 import logging
 from os import stat
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from asyncio import Semaphore, create_task, get_event_loop
+from asyncio import Semaphore, create_task, get_event_loop, run
 import copy
 
 import GnuPG
@@ -163,3 +163,13 @@ class KeyringModificationListener(FileSystemEventHandler):
     # on_created = handle
     # on_deleted = handle
     on_modified = handle
+
+
+def freeze_and_load_keys():
+    """Load and return keys.
+
+    Doesn't refresh the keys when they change on disk.
+    '"""
+    keyring_dir = conf.get_item('gpg', 'keyhome')
+    keyring = KeyRing(keyring_dir)
+    return run(keyring.freeze_identities())

@@ -51,7 +51,8 @@ def _gpg_encrypt(raw_message, recipients):
         LOG.error("No valid entry for gpg keyhome. Encryption aborted.")
         return recipients
 
-    gpg_recipients, cleartext_recipients = recpt.identify_gpg_recipients(recipients, _load_keys())
+    gpg_recipients, cleartext_recipients = \
+        recpt.identify_gpg_recipients(recipients, kcache.freeze_and_load_keys())
 
     LOG.info(f"Got addresses: gpg_to={gpg_recipients!r}, ungpg_to={cleartext_recipients!r}")
 
@@ -141,12 +142,6 @@ def _gpg_encrypt_and_deliver(message: EmailMessage, keys, recipients, encrypt_f)
 def _customise_headers(message: EmailMessage):
     if conf.flag_enabled('default', 'add_header'):
         message['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
-
-
-def _load_keys():
-    """Return a map from a key's fingerprint to email address."""
-    keyring = kcache.KeyRing(conf.get_item('gpg', 'keyhome'))
-    return asyncio.run(keyring.freeze_identities())
 
 
 def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline):
