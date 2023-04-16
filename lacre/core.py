@@ -139,13 +139,8 @@ def _gpg_encrypt_and_deliver(message: EmailMessage, keys, recipients, encrypt_f)
 
 
 def _customise_headers(message: EmailMessage):
-    if conf.config_item_equals('default', 'add_header', 'yes'):
+    if conf.flag_enabled('default', 'add_header'):
         message['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
-
-    if 'Content-Transfer-Encoding' in message:
-        message.replace_header('Content-Transfer-Encoding', '8BIT')
-    else:
-        message['Content-Transfer-Encoding'] = '8BIT'
 
 
 def _load_keys():
