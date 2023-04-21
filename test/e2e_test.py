@@ -104,12 +104,15 @@ class SimpleMailFilterE2ETest(unittest.TestCase):
                            smime_certpath	= cls._e2e_config.get("dirs", "certs"),
                            log_config		= cls._e2e_config.get("tests", "log_config"))
 
-    def case_count(self):
-        return self._e2e_config.getint('tests', 'cases')
+    def case_names(self):
+        def is_test_case(case_name: str) -> bool:
+            return case_name.startswith('case-')
+
+        for tc in filter(is_test_case, self._e2e_config.sections()):
+            yield tc
 
     def test_all_cases(self):
-        for case_no in range(1, self.case_count()):
-            case_name = f'case-{case_no}'
+        for case_name in self.case_names():
             with self.subTest(case=case_name):
                 self._execute_e2e_test(case_name)
 
