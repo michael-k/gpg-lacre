@@ -90,12 +90,10 @@ class RecipientList:
 
     def emails(self):
         """Return list of recipients."""
-        LOG.debug('Recipient emails from: %s', self._recipients)
         return [r.email() for r in self._recipients]
 
     def keys(self):
         """Return list of GPG identities."""
-        LOG.debug('Recipient keys from: %s', self._recipients)
         return [r.key() for r in self._recipients]
 
     def __iadd__(self, recipient: GpgRecipient):
@@ -115,6 +113,10 @@ class RecipientList:
             # do something
         """
         return len(self._recipients)
+
+    def __repr__(self):
+        """Returns textual object representation."""
+        return '<RecipientList %d %s>' % (len(self._recipients), ','.join(self.emails()))
 
 
 def identify_gpg_recipients(recipients, keys: kcache.KeyCache):

@@ -179,35 +179,42 @@ def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline):
     boundary = _make_boundary()
 
     if isinstance(message.get_payload(), str):
+        LOG.debug('Rewrapping a flat, text-only message')
         wrapped_payload = _rewrap_payload(message)
         encrypted_part.set_payload(wrapped_payload.as_string())
 
         _set_type_and_boundary(message, boundary)
 
-        return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, True)]
+        check_nested = True
     else:
         processed_payloads = _generate_message_from_payloads(message)
         encrypted_part.set_payload(processed_payloads.as_string())
 
         _set_type_and_boundary(message, boundary)
 
-        return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, False)]
+        check_nested = False
+
+    return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested)]
 
 
 def _rewrap_payload(message: EmailMessage) -> MIMEPart:
     # In PGP/MIME (RFC 3156), the payload has to be a valid MIME entity.  In
-    # other words, we need to wrap text/plain message's payload in a new MIME
+    # other words, we need to wrap text/* message's payload in a new MIME
     # entity.
 
-    pld = MIMEPart()
-    pld.set_type(message.get_content_type())
-    pld.set_content(message.get_content())
+    wrapper = MIMEPart(policy=SMTPUTF8)
+    content = message.get_content()
+    wrapper.set_content(content)
 
-    # Make sure all Content-Type parameters are included.
-    for (k, v) in message.get_params():
-        pld.set_param(k, v)
+    wrapper.set_type(message.get_content_type())
 
-    return pld
+    # Copy all Content-Type parameters.
+    for (pname, pvalue) in message.get_params():
+        # Skip MIME type that's also returned by get_params().
+        if not '/' in pname:
+            wrapper.set_param(pname, pvalue)
+
+    return wrapper
 
 
 def _make_boundary():
@@ -242,8 +249,6 @@ def _encrypt_payload(payload: EmailMessage, recipients, check_nested=True, **kwa
 
     if isAttachment:
         _append_gpg_extension(payload)
-    if not (payload.get('Content-Transfer-Encoding') is None):
-        payload.replace_header('Content-Transfer-Encoding', "7bit")
 
     return payload
 

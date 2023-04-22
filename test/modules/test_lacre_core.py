@@ -36,5 +36,7 @@ class LacreCoreTest(unittest.TestCase):
 
         rewrapped = lacre.core._rewrap_payload(m)
 
-        self.assertFalse('Subject' in rewrapped)
-        self.assertEqual(rewrapped.get_content_type(), m.get_content_type())
+        self.assertFalse('Subject' in rewrapped,
+                         'only content and content-type should be copied')
+        self.assertEqual(rewrapped.get_content_type(), 'text/plain',
+                         'rewrapped part should have initial message\'s content-type')

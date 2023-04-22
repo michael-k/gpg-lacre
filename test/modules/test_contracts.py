@@ -173,6 +173,14 @@ class EmailTest(unittest.TestCase):
         _ = mp.as_string()
         self.assertFalse(mp.get_boundary() is None)
 
+    def test_content_type_params_include_mime_type(self):
+        p = email.message.MIMEPart()
+        p.set_type('text/plain')
+        p.set_param('charset', 'UTF-8')
+        p.set_param('format', 'flowed')
+
+        self.assertIn(('text/plain', ''), p.get_params())
+
 
 class RawConfigParserTest(unittest.TestCase):
     def test_config_parser_returns_str(self):
