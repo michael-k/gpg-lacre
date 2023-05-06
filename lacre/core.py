@@ -392,4 +392,4 @@ def deliver_message(raw_message: EmailMessage, from_address, to_addrs):
 
     # Send out mail to recipients which are left
     LOG.debug("Sending the rest as text/plain")
-    send(raw_message.as_string(), recipients_left)
+    send(raw_message.as_bytes(policy=SMTPUTF8), recipients_left)
