@@ -22,6 +22,7 @@ import logging
 import subprocess
 import os
 import time
+import unittest
 
 
 def _spawn(cmd):
@@ -39,7 +40,6 @@ def _spawn(cmd):
 
 
 def _interrupt(proc):
-    # proc.send_signal(signal.SIGINT)
     proc.terminate()
 
 
@@ -53,11 +53,14 @@ def _load(name):
 
 def _send(host, port, mail_from, mail_to, message):
     logging.debug(f"Sending message to {host}:{port}")
-    _spawn([os.getenv("PYTHON") or "python",
-            "test/utils/sendmail.py",
-            "-f", mail_from,
-            "-t", mail_to,
-            "-m", message])
+    p = _spawn([os.getenv("PYTHON") or "python",
+        "test/utils/sendmail.py",
+        "-f", mail_from,
+        "-t", mail_to,
+        "-m", message])
+
+    # Perform subprocess's internal resource management:
+    p.communicate()
 
 
 def _load_test_config():
@@ -86,46 +89,56 @@ def _report_result(message_file, expected, test_output, boolean_func=_identity):
     print(message_file.ljust(84, '.'), status)
 
 
-def _execute_case(config, case_name):
-    logging.info(f"Executing case {case_name}")
-    python = os.getenv("PYTHON", "python")
+class AdvancedMailFilterE2ETest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.config = _load_test_config()
 
-    relay_mock = _spawn([python, "test/utils/relay.py", "2500"])
-    time.sleep(1)                            # Wait for the relay to start up.
+        python = os.getenv("PYTHON", "python")
 
-    _send("localhost", 10025, "dave@disposlab",
-          config.get(case_name, 'to'), config.get(case_name, 'in'))
+        logging.info('Starting the server...')
+        cls.server = _spawn([python, '-m', 'lacre.daemon'])
 
-    relay_mock.wait()
-    (test_out, _) = relay_mock.communicate()
+    @classmethod
+    def tearDownClass(cls):
+        logging.info('Closing the server (SIGINT): %s', (cls.server))
+        _interrupt(cls.server)
 
-    test_out = test_out.decode('utf-8')
-    logging.debug(f"Read {len(test_out)} characters of output: '{test_out}'")
+    def case_range(self):
+        return range(1, self.config.getint('tests', 'cases') + 1)
 
-    if 'out' in config[case_name]:
-        _report_result(config.get(case_name, "descr"), config.get(case_name, "out"), test_out)
-    else:
-        _report_result(config.get(case_name, "descr"), config.get(case_name, "out-not"), test_out, boolean_func=_inversion)
+    def test_all_cases(self):
+        for case_no in self.case_range():
+            with self.subTest(case_no=case_no):
+                self._execute_case(self.config, case_name=f'case-{case_no}')
+
+    def _execute_case(self, config, case_name):
+        logging.info(f"Executing case {case_name}")
+        python = os.getenv("PYTHON", "python")
+
+        relay_mock = _spawn([python, "test/utils/relay.py", "2500"])
+        time.sleep(1)                            # Wait for the relay to start up.
+
+        _send("localhost", 10025, "dave@disposlab",
+              config.get(case_name, 'to'), config.get(case_name, 'in'))
+
+        (test_out, _) = relay_mock.communicate()
+
+        test_out = test_out.decode('utf-8')
+        logging.debug(f"Read {len(test_out)} characters of output: '{test_out}'")
+
+        if 'out' in config[case_name]:
+            expected = '\r\n' + self.config.get(case_name, 'out')
+            self.assertIn(expected, test_out, self.config.get(case_name, 'in'))
+        else:
+            unexpected = '\r\n' + self.config.get(case_name, 'out-not')
+            self.assertNotIn(unexpected, test_out, self.config.get(case_name, 'in'))
 
 
-def _main():
-    conf = _load_test_config()
-
+if __name__ == '__main__':
     logging.basicConfig(filename="test/logs/daemon-test.log",
                         format="%(asctime)s %(pathname)s:%(lineno)d %(levelname)s [%(funcName)s] %(message)s",
                         datefmt="%Y-%m-%d %H:%M:%S",
                         level=logging.DEBUG)
 
-    logging.info("Starting Lacre Daemon tests...")
-    python = os.getenv("PYTHON", "python")
-
-    server = _spawn([python, "-m", "lacre.daemon"])
-
-    for case_no in range(1, conf.getint("tests", "cases") + 1):
-        _execute_case(conf, case_name=f"case-{case_no}")
-
-    _interrupt(server)
-
-
-if __name__ == '__main__':
-    _main()
+    unittest.main()
