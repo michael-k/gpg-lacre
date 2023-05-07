@@ -43,14 +43,6 @@ def _interrupt(proc):
     proc.terminate()
 
 
-def _load(name):
-    logging.debug(f"Loading file {name}")
-    f = open(name, "r")
-    contents = f.read()
-    f.close()
-    return contents
-
-
 def _send(host, port, mail_from, mail_to, message):
     logging.debug(f"Sending message to {host}:{port}")
     p = _spawn([os.getenv("PYTHON") or "python",
@@ -69,29 +61,23 @@ def _load_test_config():
     return cp
 
 
-def _identity(x):
-    return x
-
-
-def _inversion(x):
-    return not(x)
-
-
-def _report_result(message_file, expected, test_output, boolean_func=_identity):
-    status = None
-    expected_line = "\r\n" + expected  # + "\r\n"
-    cond_met = boolean_func(expected_line in test_output)
-    if cond_met:
-        status = "Success"
-    else:
-        status = "Failure"
-
-    print(message_file.ljust(84, '.'), status)
-
-
 class AdvancedMailFilterE2ETest(unittest.TestCase):
+    """End-to-end tests for Advanced Mail Filter.
+
+    These tests are described by e2e.ini file, each case being a
+    separate section.  All cases are executed following the same
+    procedure:
+    1. start up a mail relay mock;
+    2. load test message;
+    3. send the message to the daemon;
+    4. check if message received by relay mock meets criteria.
+
+    Before any case is executed, the daemon is started and finally it's
+    terminated by sending it a SIGINT signal."""
+
     @classmethod
     def setUpClass(cls):
+        """Start up the daemon."""
         cls.config = _load_test_config()
 
         python = os.getenv("PYTHON", "python")
@@ -101,10 +87,12 @@ class AdvancedMailFilterE2ETest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        """Terminate the daemon."""
         logging.info('Closing the server (SIGINT): %s', (cls.server))
         _interrupt(cls.server)
 
     def case_names(self):
+        """A generator yielding a sequence of test case names."""
         def is_test_case(case_name: str) -> bool:
             return case_name.startswith('case-')
 
