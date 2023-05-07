@@ -104,13 +104,17 @@ class AdvancedMailFilterE2ETest(unittest.TestCase):
         logging.info('Closing the server (SIGINT): %s', (cls.server))
         _interrupt(cls.server)
 
-    def case_range(self):
-        return range(1, self.config.getint('tests', 'cases') + 1)
+    def case_names(self):
+        def is_test_case(case_name: str) -> bool:
+            return case_name.startswith('case-')
+
+        for tc in filter(is_test_case, self.config.sections()):
+            yield tc
 
     def test_all_cases(self):
-        for case_no in self.case_range():
-            with self.subTest(case_no=case_no):
-                self._execute_case(self.config, case_name=f'case-{case_no}')
+        for case_name in self.case_names():
+            with self.subTest(case=case_name):
+                self._execute_case(self.config, case_name=case_name)
 
     def _execute_case(self, config, case_name):
         logging.info(f"Executing case {case_name}")
