@@ -12,14 +12,14 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         self.assertEqual(cmd, ["gpg", "--homedir", "test/keyhome", "--foo", "--bar"])
 
     def test_key_confirmation_with_matching_email(self):
-        armored_key = self._load('test/keys/bob@disposlab')
+        armored_key = self._load('test/keys/bob@disposlab.pub')
         matching_email = 'bob@disposlab'
 
         is_confirmed = GnuPG.confirm_key(armored_key, matching_email)
         self.assertTrue(is_confirmed)
 
     def test_key_confirmation_email_mismatch(self):
-        armored_key = self._load('test/keys/bob@disposlab')
+        armored_key = self._load('test/keys/bob@disposlab.pub')
         not_matching_email = 'lucy@disposlab'
 
         is_confirmed = GnuPG.confirm_key(armored_key, not_matching_email)

@@ -145,6 +145,7 @@ def delete_key(keyhome, email):
     if result[1]:
         # delete all keys matching this email address
         p = subprocess.Popen(_build_command(keyhome, '--delete-key', '--batch', '--yes', result[1]), stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p.communicate()
         p.wait()
         return True
 
