@@ -23,6 +23,8 @@ import subprocess
 import configparser
 import logging
 
+import unittest
+
 
 RELAY_SCRIPT = "test/utils/relay.py"
 CONFIG_FILE = "test/gpg-mailgate.conf"
@@ -58,7 +60,6 @@ def _build_config(config):
     # uses PGP/MIME.
     cp.set("pgp_style", "evan@disposlab", "mime")
 
-    logging.debug(f"Created config with keyhome={config['gpg_keyhome']}, cert_path={config['smime_certpath']} and relay at port {config['port']}")
     return cp
 
 
@@ -74,77 +75,11 @@ def _write_test_config(outfile, **config):
 
 
 def _load_file(name):
-    f = open(name, 'r')
+    f = open(name, 'rb')
     contents = f.read()
     f.close()
 
-    return bytes(contents, 'utf-8')
-
-
-def _identity(x):
-    return x
-
-
-def _inversion(x):
-    return not(x)
-
-
-def _report_result(message_file, expected, test_output, boolean_func=_identity):
-    status = None
-    expected_line = "\r\n" + expected  # + "\r\n"
-    cond_met = boolean_func(expected_line in test_output)
-    if cond_met:
-        status = "Success"
-    else:
-        status = "Failure"
-
-    print(message_file.ljust(35), status)
-
-
-def _execute_e2e_test(case_name, config, config_path):
-    """Read test case configuration from config and run that test case.
-
-    Parameter case_name should refer to a section in test
-    config file.  Each of these sections should contain
-    following properties: 'descr', 'to', 'in' and 'out'.
-    """
-    # This environment variable is set in Makefile.
-    python_path = os.getenv('PYTHON', 'python3')
-
-    gpglacre_cmd = [python_path,
-                    "gpg-mailgate.py",
-                    config.get(case_name, "to")]
-
-    relay_cmd = [python_path,
-                 config.get("relay", "script"),
-                 config.get("relay", "port")]
-
-    logging.debug(f"Spawning relay: {relay_cmd}")
-    relay_proc = subprocess.Popen(relay_cmd,
-                                  stdin=None,
-                                  stdout=subprocess.PIPE)
-
-    logging.debug(f"Spawning GPG-Lacre: {gpglacre_cmd}, stdin = {config.get(case_name, 'in')}")
-
-    # pass PATH because otherwise it would be dropped
-    gpglacre_proc = subprocess.run(gpglacre_cmd,
-                                   input=_load_file(config.get(case_name, "in")),
-                                   capture_output=True,
-                                   env={"GPG_MAILGATE_CONFIG": config_path,
-                                        "PATH": os.getenv("PATH")})
-
-    # Let the relay process the data.
-    relay_proc.wait()
-
-    (testout, _) = relay_proc.communicate()
-    testout = testout.decode('utf-8')
-
-    logging.debug(f"Read {len(testout)} characters of test output: '{testout}'")
-
-    if 'out' in config[case_name]:
-        _report_result(config.get(case_name, "in"), config.get(case_name, "out"), testout)
-    else:
-        _report_result(config.get(case_name, "in"), config.get(case_name, "out-not"), testout, boolean_func=_inversion)
+    return contents
 
 
 def _load_test_config():
@@ -154,28 +89,92 @@ def _load_test_config():
     return cp
 
 
-config = _load_test_config()
+class SimpleMailFilterE2ETest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls._e2e_config = _load_test_config()
+        cls._e2e_config_path = os.path.join(os.getcwd(), CONFIG_FILE)
 
-logging.basicConfig(filename	= config.get("tests", "e2e_log"),
-                    # Get raw values of log and date formats because they
-                    # contain %-sequences and we don't want them to be expanded
-                    # by the ConfigParser.
-                    format		= config.get("tests", "e2e_log_format", raw=True),
-                    datefmt		= config.get("tests", "e2e_log_datefmt", raw=True),
-                    level		= logging.DEBUG)
+        # This environment variable is set in Makefile.
+        cls._python_path = os.getenv('PYTHON', 'python3')
 
-config_path = os.getcwd() + "/" + CONFIG_FILE
+        _write_test_config(cls._e2e_config_path,
+                           port				= cls._e2e_config.get("relay", "port"),
+                           gpg_keyhome		= cls._e2e_config.get("dirs", "keys"),
+                           smime_certpath	= cls._e2e_config.get("dirs", "certs"),
+                           log_config		= cls._e2e_config.get("tests", "log_config"))
 
-_write_test_config(config_path,
-                   port				= config.get("relay", "port"),
-                   gpg_keyhome		= config.get("dirs", "keys"),
-                   smime_certpath	= config.get("dirs", "certs"),
-                   log_config		= config.get("tests", "log_config"))
+    def case_names(self):
+        def is_test_case(case_name: str) -> bool:
+            return case_name.startswith('case-')
 
-for case_no in range(1, config.getint("tests", "cases") + 1):
-    case_name = f"case-{case_no}"
-    logging.info(f"Executing {case_name}: {config.get(case_name, 'descr')}")
+        for tc in filter(is_test_case, self._e2e_config.sections()):
+            yield tc
 
-    _execute_e2e_test(case_name, config, config_path)
+    def test_all_cases(self):
+        for case_name in self.case_names():
+            with self.subTest(case=case_name):
+                self._execute_e2e_test(case_name)
 
-print("See diagnostic output for details. Tests: '%s', Lacre: '%s'" % (config.get("tests", "e2e_log"), config.get("tests", "lacre_log")))
+    def _execute_e2e_test(self, case_name):
+        """Read test case configuration from config and run that test case.
+
+        Parameter case_name should refer to a section in test
+        config file.  Each of these sections should contain
+        following properties: 'descr', 'to', 'in' and 'out'.
+        """
+        gpglacre_cmd = self._python_command(
+            'gpg-mailgate.py',
+            self._e2e_config.get(case_name, 'to'))
+
+        relay_cmd = self._python_command(
+            self._e2e_config.get("relay", "script"),
+            self._e2e_config.get("relay", "port"))
+
+        logging.debug(f"Spawning relay: {relay_cmd}")
+        relay_proc = subprocess.Popen(relay_cmd,
+            stdin=None,
+            stdout=subprocess.PIPE)
+
+        logging.debug(f"Spawning GPG-Lacre: {gpglacre_cmd}, stdin = {self._e2e_config.get(case_name, 'in')}")
+
+        # pass PATH because otherwise it would be dropped
+        gpglacre_proc = subprocess.run(gpglacre_cmd,
+            input=_load_file(self._e2e_config.get(case_name, "in")),
+            capture_output=True,
+            env={"GPG_MAILGATE_CONFIG": self._e2e_config_path,
+                "PATH": os.getenv("PATH")})
+
+        # Let the relay process the data.
+        relay_proc.wait()
+
+        (testout, _) = relay_proc.communicate()
+        testout = testout.decode('utf-8')
+
+        logging.debug(f"Read {len(testout)} characters of test output: '{testout}'")
+
+        if 'out' in self._e2e_config[case_name]:
+            expected = "\r\n" + self._e2e_config.get(case_name, "out")
+            self.assertIn(expected, testout, self._e2e_config.get(case_name, "in"))
+        else:
+            unexpected = "\r\n" + self._e2e_config.get(case_name, "out-not")
+            self.assertNotIn(unexpected, testout, self._e2e_config.get(case_name, "in"))
+
+    def _python_command(self, script, *args):
+        command = [self._python_path, script]
+        command.extend(args)
+        return command
+
+
+if __name__ == '__main__':
+    config = _load_test_config()
+
+    logging.basicConfig(filename	= config.get("tests", "e2e_log"),
+                        # Get raw values of log and date formats because they
+                        # contain %-sequences and we don't want them to be
+                        # expanded by the ConfigParser.
+                        format		= config.get("tests", "e2e_log_format", raw=True),
+                        datefmt		= config.get("tests", "e2e_log_datefmt", raw=True),
+                        level		= logging.DEBUG)
+
+    unittest.main()

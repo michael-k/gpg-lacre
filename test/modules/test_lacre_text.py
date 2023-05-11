@@ -1,5 +1,8 @@
 import lacre.text
 import sys
+from email import message_from_binary_file
+from email.message import EmailMessage
+from email.policy import SMTPUTF8
 
 import unittest
 
@@ -35,3 +38,23 @@ class LacreTextTest(unittest.TestCase):
         (addr2, topic) = lacre.text.parse_delimiter(addr)
         self.assertEqual(addr2, "Some.Name@example.com")
         self.assertEqual(topic, "some-topic")
+
+    def test_pgp_inline_recognised(self):
+        msg = None
+        with open('test/msgin/ed2ed.msg', 'rb') as f:
+            msg = message_from_binary_file(f, policy=SMTPUTF8)
+
+        body = msg.get_payload()
+
+        self.assertIn(lacre.text.PGP_BEGIN_S, body)
+        self.assertIn(lacre.text.PGP_END_S, body)
+        self.assertTrue(lacre.text.is_payload_pgp_inline(body))
+
+    def test_pgp_marker_mentioned(self):
+        msg = None
+        with open('test/msgin/with-markers2clear.msg', 'rb') as f:
+            msg = message_from_binary_file(f, policy=SMTPUTF8)
+
+        body = msg.get_payload()
+
+        self.assertFalse(lacre.text.is_payload_pgp_inline(body))

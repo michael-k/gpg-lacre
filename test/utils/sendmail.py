@@ -2,27 +2,49 @@ import logging
 import smtplib
 import sys
 import getopt
+from email import message_from_binary_file
+from email.policy import SMTPUTF8
 
 
-def _load_file(name):
-    f = open(name, 'r')
-    contents = f.read()
-    f.close()
-    return contents
+def _load_file(name) -> bytes:
+    with open(name, 'rb') as f:
+        return f.read()
 
 
-def _send(host, port, from_addr, recipients, message):
+def _load_message(name):
+    with open(name, 'rb') as f:
+        return message_from_binary_file(f, policy=SMTPUTF8)
+
+
+def _send_message(host, port, from_addr, recipients, message):
     logging.info(f"From {from_addr} to {recipients} at {host}:{port}")
     try:
         smtp = smtplib.SMTP(host, port)
-        # smtp.starttls()
-        return smtp.sendmail(from_addr, recipients, message)
+        return smtp.sendmail(from_addr, recipients, message.as_bytes())
     except smtplib.SMTPDataError as e:
         logging.error(f"Couldn't deliver message. Got error: {e}")
         return None
     except ConnectionRefusedError as e:
         logging.exception(f"Connection refused: {e}")
         return None
+    except:
+        logging.exception('Unexpected exception was thrown')
+        return None
+
+
+# The poinf of this function is to do _almost_ what SMTP.sendmail does, but
+# without enforcing ASCII.  We want to test Lacre with not necessarily valid
+# messages.
+def _send_bytes(host: str, port, from_addr: str, recipients, message: bytes):
+    try:
+        smtp = smtplib.SMTP(host, port)
+        smtp.ehlo_or_helo_if_needed()
+        smtp.mail(from_addr)
+        for r in recipients:
+            smtp.rcpt(r)
+        smtp.data(message)
+    except:
+        logging.exception('Unexpected exception was thrown')
 
 
 logging.basicConfig(filename="test/logs/sendmail.log",
@@ -36,21 +58,15 @@ opts, _ = getopt.getopt(sys.argv[1:], "f:t:m:")
 for opt, value in opts:
     if opt == "-f":
         sender = value
-        logging.debug(f"Sender is {sender}")
+        logging.debug(f"Sender is {sender!r}")
     if opt == "-t":
         recipient = value
-        logging.debug(f"Recipient is {recipient}")
+        logging.debug(f"Recipient is {recipient!r}")
     if opt == "-m":
         message = _load_file(value)
         logging.debug(f"Message is {message}")
 
-if message is None:
-    message = """\
-From: dave@disposlab
-To: alice@disposlab
-Subject: Test message
+if message is None or sender is None or recipient is None:
+    print('Use options to provide: -f sender -t recipient -m message')
 
-Lorem ipsum dolor sit amet.
-"""
-
-_send('localhost', 10025, sender, [recipient], message)
+_send_bytes('localhost', 10025, sender, [recipient], message)

@@ -1,6 +1,6 @@
 From: Dave <dave@localhost>
 To: Carlos <carlos@localhost>
-Subject: Test
+Subject: PGP markers
 
 This message includes inline PGP markers.
 It's enough to include these two lines:

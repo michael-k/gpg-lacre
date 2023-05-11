@@ -2,7 +2,6 @@ import GnuPG
 
 import unittest
 
-
 class GnuPGUtilitiesTest(unittest.TestCase):
     def test_build_default_command(self):
         cmd = GnuPG._build_command("test/keyhome")
@@ -13,14 +12,14 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         self.assertEqual(cmd, ["gpg", "--homedir", "test/keyhome", "--foo", "--bar"])
 
     def test_key_confirmation_with_matching_email(self):
-        armored_key = self._load('test/keys/bob@disposlab')
+        armored_key = self._load('test/keys/bob@disposlab.pub')
         matching_email = 'bob@disposlab'
 
         is_confirmed = GnuPG.confirm_key(armored_key, matching_email)
         self.assertTrue(is_confirmed)
 
     def test_key_confirmation_email_mismatch(self):
-        armored_key = self._load('test/keys/bob@disposlab')
+        armored_key = self._load('test/keys/bob@disposlab.pub')
         not_matching_email = 'lucy@disposlab'
 
         is_confirmed = GnuPG.confirm_key(armored_key, not_matching_email)
@@ -49,6 +48,18 @@ class GnuPGUtilitiesTest(unittest.TestCase):
     def _load(self, filename):
         with open(filename) as f:
             return f.read()
+
+    def test_parse_statusfd_key_expired(self):
+        key_expired = b"""
+[GNUPG:] KEYEXPIRED 1668272263
+[GNUPG:] KEY_CONSIDERED XXXXXXXXXXXXX 0
+[GNUPG:] INV_RECP 0 name@domain
+[GNUPG:] FAILURE encrypt 1
+"""
+        result = GnuPG.parse_status(key_expired)
+        self.assertEqual(result['issue'], b'KEYEXPIRED')
+        self.assertEqual(result['recipient'], b'name@domain')
+        self.assertEqual(result['cause'], 'No specific reason given')
 
 
 if __name__ == '__main__':
