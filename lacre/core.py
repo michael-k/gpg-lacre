@@ -209,7 +209,7 @@ def _rewrap_payload(message: EmailMessage) -> MIMEPart:
     wrapper.set_type(message.get_content_type())
 
     # Copy all Content-Type parameters.
-    for (pname, pvalue) in message.get_params():
+    for (pname, pvalue) in message.get_params(failobj=list()):
         # Skip MIME type that's also returned by get_params().
         if not '/' in pname:
             wrapper.set_param(pname, pvalue)

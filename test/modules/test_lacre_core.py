@@ -40,3 +40,17 @@ class LacreCoreTest(unittest.TestCase):
                          'only content and content-type should be copied')
         self.assertEqual(rewrapped.get_content_type(), 'text/plain',
                          'rewrapped part should have initial message\'s content-type')
+
+    def test_payload_wrapping_wo_content_type(self):
+        m = EmailMessage()
+        m.set_payload('This is a payload.\r\n'
+                      + '\r\n'
+                      + 'It has two paragraphs.\r\n')
+        m['Subject'] = 'Source message'
+
+        rewrapped = lacre.core._rewrap_payload(m)
+
+        self.assertFalse('Subject' in rewrapped,
+                         'only content and content-type should be copied')
+        self.assertEqual(rewrapped.get_content_type(), 'text/plain',
+                         'rewrapped part should have initial message\'s content-type')
