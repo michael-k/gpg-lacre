@@ -1,10 +1,10 @@
 # Lacre Project
 
-Lacre is a fork of and continuation of the original work on
+Lacre is a fork and continuation of the original work on
 [gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate) project.  It is
 still actively developed and should be considered as beta -- with all APIs and
-internals being subject to change.  Please only use this software if you
-know GnuPG well and accept occasional failures.
+internals being subject to change.  Please only use this software if you know
+GnuPG well and accept occasional failures.
 
 **Lacre** (wax seal in Portuguese) is a
 [content filter](https://www.postfix.org/FILTER_README.html)
@@ -40,9 +40,6 @@ Made possible thanks to:<br>
 # Installation
 
 For installation instructions, please refer to the included [INSTALL](INSTALL.md) file.
-
-Please note Lacre is developed and tested with Python 3.9.  Other versions
-might not work as expected and haven't been tested thoroughly.
 
 ---
 
