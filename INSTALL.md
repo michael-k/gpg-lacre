@@ -19,16 +19,17 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 
 ### Requirements
 
-- Python 3.x is already installed
-- Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems
-- GnuPG is already installed and configured
+- Python 3.9.
+- Dependencies listed in [requirements file](https://packaging.python.org/en/latest/tutorials/installing-packages/#requirements-files).
+- Postfix: installed, configured and tested.
+- GnuPG: installed, configured and tested (e.g. via command-line).
 
 ### Installation
 
-1. Install the Python-M2Crypto module:
+1. Install the dependencies:
 
 ```
-apt-get install python-m2crypto
+python -m pip install -r requirements.txt
 ```
 
 2. Set the home directory for the user `nobody` (sadly this workaround is needed as there is no better solution at this point). If you get an error that the user is currently used by a process, you might need to kill the process manually.
@@ -99,8 +100,7 @@ sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/pub
 
 - Replace `/some/public.key` with the location of a public key
 - `/some/public.key` can be deleted after importation
-- Confirm that it's working:
-`sudo -u nobody /usr/bin/gpg --list-keys --homedir=/var/gpgmailgate/.gnupg`
+- Confirm that it's working: `sudo -u nobody /usr/bin/gpg --list-keys --homedir=/var/gpgmailgate/.gnupg`
 
 Please also test your installation before using it.
 
@@ -124,7 +124,9 @@ If your recipients have problems to decrypt mails encrypted by GPG-Mailgate they
 
 ### Installation
 
-All files you need can be found in the [gpg-mailgate-web](gpg-mailgate-web/) directory.
+All files you need can be found in the
+[Lacre / lacre-webgate](https://git.disroot.org/Lacre/lacre-webgate/)
+repository.
 
 1. Install the Python-mysqldb and Python-markdown modules:
 
