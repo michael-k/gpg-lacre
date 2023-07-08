@@ -20,7 +20,7 @@ These instructions are based on an installation on an Ubuntu 14.04 LTS virtual m
 ### Requirements
 
 - Python 3.9.
-- Dependencies listed in [requirements file](https://packaging.python.org/en/latest/tutorials/installing-packages/#requirements-files).
+- Dependencies listed in [requirements file](https://packaging.python.org/en/latest/tutorials/installing-packages/#requirements-files), `requirements.txt`.
 - Postfix: installed, configured and tested.
 - GnuPG: installed, configured and tested (e.g. via command-line).
 
