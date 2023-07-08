@@ -1,24 +1,23 @@
 # Lacre Project
 
+**Lacre** (wax seal in Portuguese) is an add-on for Postfix that automatically
+encrypts incoming email before delivering it to recipients' inbox for
+recipients that have provided their public keys.
+
 Lacre is a fork and continuation of the original work on
 [gpg-mailgate](https://github.com/TheGreatGooo/gpg-mailgate) project.  It is
 still actively developed and should be considered as beta -- with all APIs and
 internals being subject to change.  Please only use this software if you know
 GnuPG well and accept occasional failures.
 
-**Lacre** (wax seal in Portuguese) is a
-[content filter](https://www.postfix.org/FILTER_README.html)
-for Postfix that automatically encrypts incoming email using GnuPG for
-recipients that have provided their public keys.
-
-All incoming emails are automatically encrypted with users' public keys before
-they are saved in the inbox.
-
 # How it works
 
-When Postfix receives a message, it "forwards" that message to Lacre.
+Lacre is a [content filter](https://www.postfix.org/FILTER_README.html).  This
+means, that when Postfix receives a message, it "forwards" that message to
+Lacre and if Lacre delivers it to a given destination, the message arrives to
+recipient's inbox.
 
-Then, Lacre does the following:
+After receiving the message, Lacre does the following:
 
 1. If message already is encrypted, it just delivers the message immediately.
 2. Checks the list of recipients, finds their public keys if any were
