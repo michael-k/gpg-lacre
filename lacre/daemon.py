@@ -78,7 +78,7 @@ class MailEncryptionProxy:
     def _send_unencrypted(self, operation, message, envelope, send: xport.SendFrom):
         keep = KeepIntact(operation.recipients())
         new_message = keep.perform(message)
-        send(new_message, operation.recipients(), envelope.mail_from)
+        send(new_message, operation.recipients())
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
