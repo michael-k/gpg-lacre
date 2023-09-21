@@ -19,7 +19,6 @@
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import GnuPG
 import sqlalchemy
 from sqlalchemy.sql import select, delete, and_
 import smtplib
@@ -31,6 +30,13 @@ import logging
 import lacre
 import lacre.config as conf
 
+# Read configuration from /etc/gpg-mailgate.conf
+conf.load_config()
+
+lacre.init_logging(conf.get_item('logging', 'config'))
+LOG = logging.getLogger('webgate-cron.py')
+
+import GnuPG
 
 def _load_file(name):
     f = open(name)
@@ -88,13 +94,6 @@ def _define_db_schema():
                                   sqlalchemy.Column('time', sqlalchemy.DateTime))
 
     return (gpgmw_keys)
-
-
-# Read configuration from /etc/gpg-mailgate.conf
-conf.load_config()
-
-lacre.init_logging(conf.get_item('logging', 'config'))
-LOG = logging.getLogger('webgate-cron.py')
 
 
 if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
