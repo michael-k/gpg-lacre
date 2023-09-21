@@ -56,10 +56,24 @@ class GnuPGUtilitiesTest(unittest.TestCase):
 [GNUPG:] INV_RECP 0 name@domain
 [GNUPG:] FAILURE encrypt 1
 """
+
         result = GnuPG.parse_status(key_expired)
         self.assertEqual(result['issue'], b'KEYEXPIRED')
         self.assertEqual(result['recipient'], b'name@domain')
         self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['key'], b'XXXXXXXXXXXXX')
+
+    def test_parse_statusfd_key_absent(self):
+        non_specific_errors = b"""
+[GNUPG:] INV_RECP 0 name@domain
+[GNUPG:] FAILURE encrypt 1
+"""
+
+        result = GnuPG.parse_status(non_specific_errors)
+        self.assertEqual(result['issue'], b'n/a')
+        self.assertEqual(result['recipient'], b'name@domain')
+        self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['key'], b'n/a')
 
 
 if __name__ == '__main__':
