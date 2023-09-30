@@ -10,7 +10,7 @@
 # This marco is passed via environment to test/e2e_test.py, where it's
 # used to compute further commands.
 #
-PYTHON = python3
+PYTHON = python
 
 TEST_DB = test/lacre.db
 
