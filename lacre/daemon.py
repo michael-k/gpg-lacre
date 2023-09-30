@@ -11,7 +11,6 @@ import asyncio
 import email
 from email.policy import SMTPUTF8
 import time
-from watchdog.observers import Observer
 
 # Load configuration and init logging, in this order.  Only then can we load
 # the last Lacre module, i.e. lacre.mailgate.
@@ -106,13 +105,6 @@ def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5)
                       data_size_limit=max_body_bytes)
 
 
-def _init_reloader(keyring_dir: str, reloader) -> kcache.KeyringModificationListener:
-    listener = kcache.KeyringModificationListener(reloader)
-    observer = Observer()
-    observer.schedule(listener, keyring_dir, recursive=False)
-    return observer
-
-
 def _validate_config():
     missing = conf.validate_config()
     if missing:
@@ -138,12 +130,12 @@ def _main():
 
     loop = asyncio.get_event_loop()
 
-    keyring = kcache.KeyRing(keyring_path, loop)
-    controller = _init_controller(keyring, max_data_bytes)
-    reloader = _init_reloader(keyring_path, keyring)
+    mode = conf.get_item('keyring', 'type')
 
-    LOG.info(f'Watching keyring directory {keyring_path}...')
-    reloader.start()
+    keyring = kcache.init_keyring(mode, loop = loop)
+    controller = _init_controller(keyring, max_data_bytes)
+
+    keyring.post_init_hook()
 
     LOG.info('Starting the daemon...')
     controller.start()
@@ -156,8 +148,7 @@ def _main():
         LOG.exception('Unexpected exception caught, your system may be unstable')
     finally:
         LOG.info('Shutting down keyring watcher and the daemon...')
-        reloader.stop()
-        reloader.join()
+        keyring.shutdown()
         controller.stop()
 
     LOG.info("Done")
