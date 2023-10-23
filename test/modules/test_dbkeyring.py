@@ -10,7 +10,7 @@ class LacreDbKeyringTest(unittest.TestCase):
         schema = dbk.KeyRingSchema()
         db = dbk.DatabaseKeyRing(db_url, schema)
 
-        all = db.load()
+        identities = db.freeze_identities()
 
-        self.assertTrue('1CD245308F0963D038E88357973CF4D9387C44D7' in all)
-        self.assertTrue(all.has_email('alice@disposlab'))
+        self.assertTrue('1CD245308F0963D038E88357973CF4D9387C44D7' in identities)
+        self.assertTrue(identities.has_email('alice@disposlab'))
