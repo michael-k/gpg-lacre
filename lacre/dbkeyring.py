@@ -28,8 +28,13 @@ class DatabaseKeyRing(KeyRing):
 
     def __init__(self, database_url, schema: KeyRingSchema):
         self._schema = schema
-        self._engine = sqlalchemy.create_engine(database_url)
-        self._connection = self._engine.connect()
+        self._url = database_url
+        self._initialised = False
+
+    def _ensure_initialised(self):
+        if not self._initialised:
+            self._engine = sqlalchemy.create_engine(self._url)
+            self._connection = self._engine.connect()
 
     def load(self):
         """Do nothing, database contents doesn't need to be cached."""
@@ -37,6 +42,7 @@ class DatabaseKeyRing(KeyRing):
 
     async def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
+        self._ensure_initialised()
         return self._load_identities()
 
     def _load_identities(self) -> KeyCache:
