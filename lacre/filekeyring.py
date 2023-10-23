@@ -54,8 +54,7 @@ class FileKeyRing(KeyRing):
     def load(self):
         """Load keyring, replacing any previous contents of the cache."""
         LOG.debug('Reloading keys...')
-        tsk = create_task(self._load(), 'LoadTask')
-        self._loop.run_until_complete(tsk)
+        return create_task(self._load(), 'LoadTask')
 
     async def _load(self):
         last_mod = self._read_mod_time()

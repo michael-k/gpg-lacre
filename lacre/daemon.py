@@ -122,7 +122,7 @@ async def _sleep():
         await asyncio.sleep(360)
 
 
-def _main():
+async def _main():
     _validate_config()
 
     keyring_path = conf.get_item('gpg', 'keyhome')
@@ -132,16 +132,16 @@ def _main():
 
     mode = conf.get_item('keyring', 'type')
 
-    keyring = kcache.init_keyring(mode, loop = loop)
-    controller = _init_controller(keyring, max_data_bytes)
-
-    keyring.post_init_hook()
-
-    LOG.info('Starting the daemon...')
-    controller.start()
-
     try:
-        loop.run_until_complete(_sleep())
+        keyring = kcache.init_keyring(mode, loop = loop)
+        controller = _init_controller(keyring, max_data_bytes)
+
+        keyring.post_init_hook()
+
+        LOG.info('Starting the daemon...')
+        controller.start()
+
+        await _sleep()
     except KeyboardInterrupt:
         LOG.info("Finishing...")
     except:
@@ -155,4 +155,4 @@ def _main():
 
 
 if __name__ == '__main__':
-    _main()
+    asyncio.run(_main())
