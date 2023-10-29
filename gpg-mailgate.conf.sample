@@ -28,15 +28,6 @@ mail_case_insensitive = no
 keyhome = /var/gpgmailgate/.gnupg
 
 [keyring]
-# Two options available:
-#
-# - file -- use GnuPG's pubring.kbx file as the only key store and cache its
-#   contents, reloading it on file modifications.
-#
-# - database -- use a relational database to store identities (when used, you
-#   must specify url parameter to specify which database to connect to).
-type = file
-
 # Only required when type==DatabaseKeyRing, specifies the database URL.
 #url = file:///path/to/sqlite.db
 

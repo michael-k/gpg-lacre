@@ -20,8 +20,7 @@ MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("relay", "port"),
                           ("daemon", "host"),
                           ("daemon", "port"),
-                          ("gpg", "keyhome"),
-                          ("keyring", "type")]
+                          ("gpg", "keyhome")]
 
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in

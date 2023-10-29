@@ -14,7 +14,7 @@ class KeyRingSchema:
         self._id_table = self._identities()
 
     def _identities(self):
-        lacre_id = sqlalchemy.Table('identities', self._meta,
+        lacre_id = sqlalchemy.Table('gpgmw_identities', self._meta,
             sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
             sqlalchemy.Column('key_id', sqlalchemy.String(64), index=True))
         return lacre_id
@@ -40,7 +40,7 @@ class DatabaseKeyRing(KeyRing):
         """Do nothing, database contents doesn't need to be cached."""
         pass
 
-    async def freeze_identities(self) -> KeyCache:
+    def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
         self._ensure_initialised()
         return self._load_identities()

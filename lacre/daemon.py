@@ -36,7 +36,7 @@ class MailEncryptionProxy:
         """Accept a message and either encrypt it or forward as-is."""
         start = time.process_time()
         try:
-            keys = await self._keyring.freeze_identities()
+            keys = self._keyring.freeze_identities()
             LOG.debug('Parsing message: %s', self._beginning(envelope))
             message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
             LOG.debug('Parsed into %s: %s', type(message), repr(message))
@@ -130,10 +130,8 @@ async def _main():
 
     loop = asyncio.get_event_loop()
 
-    mode = conf.get_item('keyring', 'type')
-
     try:
-        keyring = kcache.init_keyring(mode, loop = loop)
+        keyring = kcache.init_keyring()
         controller = _init_controller(keyring, max_data_bytes)
 
         keyring.post_init_hook()

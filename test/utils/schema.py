@@ -13,7 +13,7 @@ def define_db_schema():
                                   sqlalchemy.Column('status', sqlalchemy.Integer),
                                   sqlalchemy.Column('time', sqlalchemy.DateTime))
 
-    identities = sqlalchemy.Table('identities', meta,
+    identities = sqlalchemy.Table('gpgmw_identities', meta,
         sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
         sqlalchemy.Column('key_id', sqlalchemy.String(64), index=True))
 

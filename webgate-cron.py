@@ -93,12 +93,16 @@ def _define_db_schema():
                                   sqlalchemy.Column('status', sqlalchemy.Integer),
                                   sqlalchemy.Column('time', sqlalchemy.DateTime))
 
-    return (gpgmw_keys)
+    identities = sqlalchemy.Table('gpgmw_identities', meta,
+        sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
+        sqlalchemy.Column('key_id', sqlalchemy.String(64), index=True))
+
+    return (gpgmw_keys, identities)
 
 
 if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
     (engine, conn) = _setup_db_connection(conf.get_item("database", "url"))
-    (gpgmw_keys) = _define_db_schema()
+    (gpgmw_keys, gpgmw_identities) = _define_db_schema()
 
     selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
         .where(and_(gpgmw_keys.c.status == 0, gpgmw_keys.c.confirm == ""))\
@@ -106,21 +110,29 @@ if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_se
     LOG.debug(f"Retrieving keys to be processed: {selq}")
     result_set = conn.execute(selq)
 
-    for key_id, row_id, email in result_set:
+    for armored_key, row_id, email in result_set:
         # delete any other public keys associated with this confirmed email address
         delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == email, gpgmw_keys.c.id != row_id))
         LOG.debug(f"Deleting public keys associated with confirmed email: {delq}")
         conn.execute(delq)
         GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), email)
-        LOG.info('Deleted key for <' + email + '> via import request')
+        LOG.info('Deleted key for <%s> via import request', email)
 
-        if key_id.strip():  # we have this so that user can submit blank key to remove any encryption
-            if GnuPG.confirm_key(key_id, email):
-                GnuPG.add_key(conf.get_item('gpg', 'keyhome'), key_id)  # import the key to gpg
+        if armored_key.strip():  # we have this so that user can submit blank key to remove any encryption
+            if GnuPG.confirm_key(armored_key, email):
+                # import the key to gpg
+                GnuPG.add_key(conf.get_item('gpg', 'keyhome'), armored_key)
+
+                # mark key as accepted
                 modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row_id).values(status=1)
-                LOG.debug(f"Key imported, updating key: {modq}")
-                conn.execute(modq)                      # mark key as accepted
-                LOG.warning('Imported key from <' + email + '>')
+                LOG.debug("Key imported, updating key: %s", modq)
+                conn.execute(modq)
+
+                # add to identity database
+                update_identity = gpgmw_identities.insert().values(email=email, key_id=armored_key)
+                conn.execute(update_identity)
+
+                LOG.warning('Imported key from <%s>', email)
                 if conf.config_item_equals('cron', 'send_email', 'yes'):
                     _send_msg("PGP key registration successful", "registrationSuccess.md", email)
             else:
