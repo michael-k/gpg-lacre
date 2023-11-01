@@ -3,4 +3,3 @@ SQLAlchemy==1.4.32
 Markdown==3.4.1
 M2Crypto==0.38.0
 requests==2.27.1
-watchdog==2.1.9
