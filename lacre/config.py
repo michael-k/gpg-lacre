@@ -22,6 +22,10 @@ MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("daemon", "port"),
                           ("gpg", "keyhome")]
 
+CRON_REQUIRED = [('database', 'enabled'),
+                 ('database', 'url'),
+                 ('cron', 'mail_templates')]
+
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in
 # the future.
@@ -90,16 +94,23 @@ def flag_enabled(section, key) -> bool:
     return config_item_equals(section, key, 'yes')
 
 
-def validate_config():
+def validate_config(*, additional=None):
     """Check if configuration is complete.
 
     Returns a list of missing parameters, so an empty list means
     configuration is complete.
+
+    If 'additional' parameter is specified, it should be a list of
+    tuples (section, param).
     """
     missing = []
     for (section, param) in MANDATORY_CONFIG_ITEMS:
         if not config_item_set(section, param):
             missing.append((section, param))
+    if additional:
+        for (section, param) in additional:
+            if not config_item_set(section, param):
+                missing.append((section, param))
     return missing
 
 

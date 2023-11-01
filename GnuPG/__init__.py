@@ -62,9 +62,12 @@ def _build_command(key_home, *args, **kwargs):
     return cmd
 
 
-def public_keys(keyhome):
+def public_keys(keyhome, *, key_id=None):
     """List public keys from keyring KEYHOME."""
     cmd = _build_command(keyhome, '--list-keys', '--with-colons')
+    if key_id is not None:
+        cmd.append(key_id)
+
     p = subprocess.Popen(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
 
@@ -106,13 +109,10 @@ def confirm_key(content, email: str):
 
     tmpkeyhome = tempfile.mkdtemp()
 
-    localized_env = os.environ.copy()
-    localized_env["LANG"] = "C"
-    p = subprocess.Popen(_build_command(tmpkeyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env)
-    result = p.communicate(input=content)[1]
+    result = _import_key(tmpkeyhome, content)
     confirmed = False
 
-    for line in result.split(b'\n'):
+    for line in result.splitlines():
         found = RX_CONFIRM.search(line)
         if found:
             (_, extracted_email) = parseaddr(found.group(1).decode())
@@ -124,14 +124,40 @@ def confirm_key(content, email: str):
     return confirmed
 
 
+def _import_key(keyhome, content):
+    content = _to_bytes(content)
+
+    # Ensure we get expected output regardless of the system locale.
+    localized_env = os.environ.copy()
+    localized_env["LANG"] = "C"
+
+    p = subprocess.Popen(_build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env)
+    output = p.communicate(input=content)[1]
+    p.wait()
+
+    return output
+
+
 # adds a key and ensures it has the given email address
 def add_key(keyhome, content):
     """Register new key CONTENT in the keyring KEYHOME."""
-    if isinstance(content, str):
-        content = bytes(content, sys.getdefaultencoding())
-    p = subprocess.Popen(_build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.communicate(input=content)
-    p.wait()
+    output = _import_key(keyhome, content)
+
+    email = None
+    for line in output.splitlines():
+        found = RX_CONFIRM.search(line)
+        if found:
+            (_, extracted_email) = parseaddr(found.group(1).decode())
+            email = extracted_email
+
+    # Find imported key to get its fingerprint
+    imported = public_keys(keyhome, key_id=email)
+
+    if len(imported.keys()) == 1:
+        fingerprint = list(imported.keys())[0]
+        return fingerprint, imported[fingerprint]
+    else:
+        return None, None
 
 
 def delete_key(keyhome, email):
