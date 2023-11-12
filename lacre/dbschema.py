@@ -30,3 +30,6 @@ GPGMW_IDENTITIES = sqlalchemy.Table('gpgmw_identities', _meta,
                                     sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
                                     # Key fingerprint
                                     sqlalchemy.Column('key_id', sqlalchemy.String(64), index=True))
+
+def init_identities_table() -> sqlalchemy.Table:
+    return GPGMW_IDENTITIES
