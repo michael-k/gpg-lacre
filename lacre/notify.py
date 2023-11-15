@@ -7,8 +7,7 @@ import lacre.config as conf
 # Read configuration from /etc/gpg-mailgate.conf
 conf.load_config()
 
-lacre.init_logging(conf.get_item('logging', 'config'))
-LOG = logging.getLogger('webgate-cron.py')
+LOG = logging.getLogger(__name__)
 
 
 def _load_file(name):

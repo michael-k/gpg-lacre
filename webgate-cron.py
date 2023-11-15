@@ -36,7 +36,7 @@ from lacre.notify import notify
 conf.load_config()
 
 lacre.init_logging(conf.get_item('logging', 'config'))
-LOG = logging.getLogger('webgate_cron.py')
+LOG = logging.getLogger('webgate-cron.py')
 
 import GnuPG
 
