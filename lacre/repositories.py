@@ -21,6 +21,7 @@ class IdentityRepository:
 class KeyConfirmationQueue:
     """Encapsulates access to gpgmw_keys table."""
 
+    # Default number of items retrieved from the database.
     keys_read_max = 100
 
     def __init__(self, keys_table, connection):
@@ -42,13 +43,14 @@ class KeyConfirmationQueue:
         seldel = select(self._keys.c.email, self._keys.c.id).where(self._keys.c.status == db.ST_TO_BE_DELETED).limit(self.keys_read_max)
         return self._conn.execute(seldel)
 
-    def delete_keys(self, row_id, email=None):
+    def delete_keys(self, row_id, /, email=None):
+        """Remove key from the database."""
         if email is not None:
             delq = delete(self._keys).where(and_(self._keys.c.email == email, self._keys.c.id != row_id))
         else:
             delq = delete(self._keys).where(self._keys.c.id != row_id)
 
-        LOG.debug(f'Deleting public keys associated with confirmed email: {delq}')
+        LOG.debug('Deleting public keys associated with confirmed email: %s', delq)
         self._conn.execute(delq)
 
     def mark_accepted(self, row_id):
