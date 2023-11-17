@@ -22,6 +22,9 @@ MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("daemon", "port"),
                           ("gpg", "keyhome")]
 
+SCRIPT_REQUIRED = [('database', 'enabled'),
+                   ('database', 'url')]
+
 CRON_REQUIRED = [('database', 'enabled'),
                  ('database', 'url'),
                  ('cron', 'mail_templates')]
@@ -40,9 +43,9 @@ def load_config() -> dict:
     path.  Otherwise, the default is taken
     ('/etc/gpg-mailgate.conf').
     """
-    configFile = os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf')
+    config_file = config_source()
 
-    parser = _read_config(configFile)
+    parser = _read_config(config_file)
 
     # XXX: Global variable.  It is a left-over from old GPG-Mailgate code.  We
     # should drop it and probably use ConfigParser instance where configuration
@@ -50,6 +53,14 @@ def load_config() -> dict:
     global cfg
     cfg = _copy_to_dict(parser)
     return cfg
+
+
+def config_source() -> str:
+    """Return path of configuration file.
+
+    Taken from GPG_MAILGATE_CONFIG environment variable, and if it's not
+    set, defaults to /etc/gpg-mailgate.conf."""
+    return os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf')
 
 
 def _read_config(fileName) -> RawConfigParser:

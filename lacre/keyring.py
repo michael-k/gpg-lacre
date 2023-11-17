@@ -18,3 +18,12 @@ def init_keyring() -> KeyRing:
     schema = dbk.KeyRingSchema()
     LOG.info('Initialising database keyring from %s', url)
     return dbk.DatabaseKeyRing(url, schema)
+
+
+def freeze_and_load_keys():
+    """Load and return keys.
+
+    Doesn't refresh the keys when they change on disk.
+    """
+    keyring = init_keyring()
+    return keyring.freeze_identities()
