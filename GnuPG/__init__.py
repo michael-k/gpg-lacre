@@ -36,6 +36,7 @@ LINE_FINGERPRINT = 'fpr'
 LINE_USER_ID = 'uid'
 
 POS_FINGERPRINT = 9
+POS_UID = 9
 
 LOG = logging.getLogger(__name__)
 
@@ -77,11 +78,9 @@ def public_keys(keyhome, *, key_id=None):
     for line in p.stdout.readlines():
         line = line.decode(sys.getdefaultencoding())
         if line[0:3] == LINE_FINGERPRINT:
-            fingerprint = line.split(':')[POS_FINGERPRINT]
+            fingerprint = _extract_fingerprint(line)
         if line[0:3] == LINE_USER_ID:
-            if ('<' not in line or '>' not in line):
-                continue
-            email = line.split('<')[1].split('>')[0]
+            email = _parse_uid_line(line)
         if not (fingerprint is None or email is None):
             keys[fingerprint] = email
             fingerprint = None
@@ -90,6 +89,22 @@ def public_keys(keyhome, *, key_id=None):
     p.stdout.close()
     p.stderr.close()
     return keys
+
+
+def _extract_fingerprint(line):
+    fpr_line = line.split(':')
+    if len(fpr_line) <= POS_FINGERPRINT:
+        return None
+    else:
+        return fpr_line[POS_FINGERPRINT]
+
+
+def _parse_uid_line(line: str):
+    userid_line = line.split(':')
+    if len(userid_line) <= POS_UID:
+        return None
+    else:
+        return userid_line[POS_UID]
 
 
 def _to_bytes(s) -> bytes:
