@@ -1,7 +1,7 @@
 """Database-backed keyring implementation."""
 
 from lacre._keyringcommon import KeyRing, KeyCache
-from lacre.dbschema import init_identities_table
+from lacre.dbschema import init_identities_table, table_metadata
 import logging
 import sqlalchemy
 from sqlalchemy.sql import select
@@ -11,7 +11,7 @@ LOG = logging.getLogger(__name__)
 
 class KeyRingSchema:
     def __init__(self):
-        self._meta = sqlalchemy.MetaData()
+        self._meta = table_metadata()
         self._id_table = init_identities_table()
 
     def identities(self):
@@ -42,7 +42,7 @@ class DatabaseKeyRing(KeyRing):
 
     def _load_identities(self) -> KeyCache:
         identities = self._schema.identities()
-        all_identities = select(identities.c.key_id, identities.c.email)
+        all_identities = select(identities.c.fingerprint, identities.c.email)
         result = self._connection.execute(all_identities)
         LOG.debug('Retrieving all keys')
         return KeyCache({key_id: email for key_id, email in result})
