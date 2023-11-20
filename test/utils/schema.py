@@ -15,7 +15,7 @@ def define_db_schema():
 
     identities = sqlalchemy.Table('gpgmw_identities', meta,
         sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
-        sqlalchemy.Column('key_id', sqlalchemy.String(64), index=True))
+        sqlalchemy.Column('fingerprint', sqlalchemy.String(64), index=True))
 
     return (meta, gpgmw_keys, identities)
 
@@ -95,7 +95,7 @@ OjjB6xRD0Q2FN+alsNGCtdutAs18AZ5l33RMzws=\n\
     ])
 
 conn.execute(identities.insert(), [
-    {'key_id': '1CD245308F0963D038E88357973CF4D9387C44D7', 'email': 'alice@disposlab'},
-    {'key_id': '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67', 'email': 'bob@disposlab'},
-    {'key_id': '530B1BB2D0CC7971648198BBA4774E507D3AF5BC', 'email': 'evan@disposlab'}
+    {'fingerprint': '1CD245308F0963D038E88357973CF4D9387C44D7', 'email': 'alice@disposlab'},
+    {'fingerprint': '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67', 'email': 'bob@disposlab'},
+    {'fingerprint': '530B1BB2D0CC7971648198BBA4774E507D3AF5BC', 'email': 'evan@disposlab'}
    ])

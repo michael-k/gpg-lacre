@@ -13,9 +13,34 @@ class IdentityRepository:
         self._identities = identity_table
         self._conn = connection
 
-    def register(self, email, fingerprint):
-        # TODO: upsert
-        self._identities.insert().values(email=email, fingerprint=fingerprint)
+    def register_or_update(self, email, fprint):
+        assert email, "email is mandatory"
+        assert fprint, "fprint is mandatory"
+
+        if self._exists(email):
+            self._update(email, fprint)
+        else:
+            self._insert(email, fprint)
+
+    def _exists(self, email: str) -> bool:
+        selq = select(self._identities.c.email).where(self._identities.c.email == email)
+        emails = [e for e in self._conn.execute(selq)]
+        assert len(emails) == 1
+        return emails
+
+    def _insert(self, email, fprint):
+        insq = self._identities.insert().values(email=email, fingerprint=fprint)
+
+        LOG.debug('Registering identity %s: %s', email, insq)
+        self._conn.execute(insq)
+
+    def _update(self, email, fprint):
+        upq = self._identities.update() \
+            .values(fingerprint=fprint) \
+            .where(self._identities.c.email == email)
+
+        LOG.debug('Updating identity %s: %s', email, upq)
+        self._conn.execute(upq)
 
 
 class KeyConfirmationQueue:
@@ -32,8 +57,8 @@ class KeyConfirmationQueue:
         """Runs a query to retrieve at most `keys_read_max` keys and returns db result."""
         max_keys = max_keys or self.keys_read_max
 
-        selq = select(self._keys.c.publickey, self._keys.c.id, self._keys.c.email)\
-            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == ""))\
+        selq = select(self._keys.c.publickey, self._keys.c.id, self._keys.c.email) \
+            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == "")) \
             .limit(max_keys)
 
         LOG.debug('Retrieving keys to be processed: %s', selq)

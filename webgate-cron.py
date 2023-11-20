@@ -29,7 +29,6 @@ import logging
 import lacre
 import lacre.config as conf
 import lacre.dbschema as db
-from lacre.repositories import KeyConfirmationQueue, IdentityRepository
 from lacre.notify import notify
 
 # Read configuration from /etc/gpg-mailgate.conf
@@ -39,6 +38,7 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 LOG = logging.getLogger('webgate-cron.py')
 
 import GnuPG
+from lacre.repositories import KeyConfirmationQueue, IdentityRepository
 
 
 def _setup_db_connection(url):
@@ -83,7 +83,7 @@ if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database',
                 (fingerprint, _) = GnuPG.add_key(key_dir, armored_key)
 
                 key_queue.mark_accepted(row_id)
-                identities.register(email, fingerprint)
+                identities.register_or_update(email, fingerprint)
 
                 LOG.info('Imported key from <%s>', email)
                 if conf.flag_enabled('cron', 'send_email'):
