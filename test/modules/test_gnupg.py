@@ -37,17 +37,27 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         self.assertDictEqual(keys, known_identities)
 
     def test_add_delete_key(self):
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
-        GnuPG.add_key('/tmp', self._load('test/keys/bob@disposlab.pub'))
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), {
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), { })
+        GnuPG.add_key('test/keyhome', self._load('test/keys/bob@disposlab.pub'))
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), {
             '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67': 'bob@disposlab',
         })
-        GnuPG.delete_key('/tmp', 'bob@disposlab')
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
+        GnuPG.delete_key('test/keyhome.other', 'bob@disposlab')
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), { })
 
     def _load(self, filename):
         with open(filename) as f:
             return f.read()
+
+    def test_extract_fingerprint(self):
+        sample_in = '''fpr:::::::::1CD245308F0963D038E88357973CF4D9387C44D7:'''
+        fpr = GnuPG._extract_fingerprint(sample_in)
+        self.assertEqual(fpr, '1CD245308F0963D038E88357973CF4D9387C44D7')
+
+    def test_parse_uid_line(self):
+        sample_in = '''uid:e::::1624794010::C16E259AA1435947C6385B8160BC020B6C05EE18::alice@disposlab::::::::::0:'''
+        uid = GnuPG._parse_uid_line(sample_in)
+        self.assertEqual(uid, 'alice@disposlab')
 
     def test_parse_statusfd_key_expired(self):
         key_expired = b"""
