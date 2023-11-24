@@ -6,7 +6,8 @@ module.
 
 import lacre.config as conf
 from lacre._keyringcommon import KeyRing, KeyCache
-import lacre.dbkeyring as dbk
+from lacre.dbschema import GPGMW_IDENTITIES
+from lacre.repositories import IdentityRepository
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -15,12 +16,10 @@ LOG = logging.getLogger(__name__)
 def init_keyring() -> KeyRing:
     """Initialise appropriate type of keyring."""
     url = conf.get_item('database', 'url')
-    schema = dbk.KeyRingSchema()
-    LOG.info('Initialising database keyring from %s', url)
-    return dbk.DatabaseKeyRing(url, schema)
+    return IdentityRepository(GPGMW_IDENTITIES, db_url=url)
 
 
-def freeze_and_load_keys():
+def freeze_and_load_keys() -> KeyCache:
     """Load and return keys.
 
     Doesn't refresh the keys when they change on disk.

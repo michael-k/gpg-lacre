@@ -40,17 +40,13 @@ class KeyCache:
 class KeyRing:
     """Contract to be implemented by a key-store (a.k.a. keyring)."""
 
-    def load(self):
-        """Load keyring, replacing any previous contents of the cache."""
-        raise NotImplementedError('KeyRing.load not implemented')
-
     def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
         raise NotImplementedError('KeyRing.load not implemented')
 
-    def register(self, email: str, key_id: str):
+    def register_or_update(self, email: str, key_id: str):
         """Add a new (email,key) pair to the keystore."""
-        raise NotImplementedError('KeyRing.register not implemented')
+        raise NotImplementedError('KeyRing.register_or_update not implemented')
 
     def post_init_hook(self):
         """Lets the keyring perform additional operations following its initialisation."""

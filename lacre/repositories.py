@@ -1,17 +1,20 @@
 """Lacre identity and key repositories."""
 
-from sqlalchemy import select, delete, and_
+from sqlalchemy import create_engine, select, delete, and_
 import logging
 
+from lacre._keyringcommon import KeyRing, KeyCache
 import lacre.dbschema as db
 
 LOG = logging.getLogger(__name__)
 
 
-class IdentityRepository:
-    def __init__(self, identity_table, connection):
+class IdentityRepository(KeyRing):
+    def __init__(self, identity_table, connection=None, db_url=None):
         self._identities = identity_table
         self._conn = connection
+        self._url = db_url
+        self._initialised = connection is not None
 
     def register_or_update(self, email, fprint):
         assert email, "email is mandatory"
@@ -23,24 +26,50 @@ class IdentityRepository:
             self._insert(email, fprint)
 
     def _exists(self, email: str) -> bool:
+        self._ensure_connected()
         selq = select(self._identities.c.email).where(self._identities.c.email == email)
         emails = [e for e in self._conn.execute(selq)]
         assert len(emails) == 1
         return emails
 
     def _insert(self, email, fprint):
+        self._ensure_connected()
         insq = self._identities.insert().values(email=email, fingerprint=fprint)
 
         LOG.debug('Registering identity %s: %s', email, insq)
         self._conn.execute(insq)
 
     def _update(self, email, fprint):
+        self._ensure_connected()
         upq = self._identities.update() \
             .values(fingerprint=fprint) \
             .where(self._identities.c.email == email)
 
         LOG.debug('Updating identity %s: %s', email, upq)
         self._conn.execute(upq)
+
+    def _ensure_connected(self):
+        if not self._initialised:
+            self._engine = create_engine(self._url)
+            LOG.debug('Connecting with %s', repr(self._engine))
+            self._connection = self._engine.connect()
+
+    def delete(self, email):
+        self._ensure_connected()
+
+        delq = delete(self._identities).where(self._identities.c.email == email)
+        LOG.debug('Deleting keys assigned to %s', email)
+
+    def freeze_identities(self) -> KeyCache:
+        """Return a static, async-safe copy of the identity map."""
+        self._ensure_connected()
+        return self._load_identities()
+
+    def _load_identities(self) -> KeyCache:
+        all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
+        result = self._connection.execute(all_identities)
+        LOG.debug('Retrieving all keys')
+        return KeyCache({key_id: email for key_id, email in result})
 
 
 class KeyConfirmationQueue:

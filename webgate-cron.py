@@ -73,7 +73,8 @@ if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database',
 
     for armored_key, row_id, email in result_set:
         # delete any other public keys associated with this confirmed email address
-        key_queue.delete_keys(row_id, email)
+        key_queue.delete_keys(row_id, email=email)
+        identities.delete(email)
         GnuPG.delete_key(key_dir, email)
         LOG.info('Deleted key for <%s> via import request', email)
 
