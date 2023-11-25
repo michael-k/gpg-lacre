@@ -16,7 +16,7 @@ LOG = logging.getLogger(__name__)
 def init_keyring() -> KeyRing:
     """Initialise appropriate type of keyring."""
     url = conf.get_item('database', 'url')
-    return IdentityRepository(GPGMW_IDENTITIES, db_url=url)
+    return IdentityRepository(db_url=url)
 
 
 def freeze_and_load_keys() -> KeyCache:

@@ -38,33 +38,23 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 LOG = logging.getLogger('webgate-cron.py')
 
 import GnuPG
-from lacre.repositories import KeyConfirmationQueue, IdentityRepository
-
-
-def _setup_db_connection(url):
-    engine = sqlalchemy.create_engine(url)
-    LOG.debug('Initialised database engine: %s', engine)
-    return (engine, engine.connect())
-
-
-def _define_db_schema():
-    return (db.GPGMW_KEYS, db.GPGMW_IDENTITIES)
+from lacre.repositories import KeyConfirmationQueue, IdentityRepository, connect
 
 
 def _validate_config():
     missing = conf.validate_config(additional=conf.CRON_REQUIRED)
     if missing:
         LOG.error('Missing config parameters: %s', missing)
+        exit(lacre.EX_CONFIG)
 
 
 _validate_config()
 
 if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url'):
-    (engine, conn) = _setup_db_connection(conf.get_item("database", "url"))
-    (gpgmw_keys, gpgmw_identities) = _define_db_schema()
+    conn = connect(conf.get_item('database', 'url'))
 
-    identities = IdentityRepository(gpgmw_identities, conn)
-    key_queue = KeyConfirmationQueue(gpgmw_keys, conn)
+    identities = IdentityRepository(conn)
+    key_queue = KeyConfirmationQueue(conn)
 
     key_dir = conf.get_item('gpg', 'keyhome')
     LOG.debug('Using GnuPG with home directory in %s', key_dir)

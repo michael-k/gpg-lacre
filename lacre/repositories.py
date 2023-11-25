@@ -1,6 +1,6 @@
 """Lacre identity and key repositories."""
 
-from sqlalchemy import create_engine, select, delete, and_
+from sqlalchemy import create_engine, select, delete, and_, func
 import logging
 
 from lacre._keyringcommon import KeyRing, KeyCache
@@ -9,9 +9,20 @@ import lacre.dbschema as db
 LOG = logging.getLogger(__name__)
 
 
+# Internal state
+_engine = None
+
+def connect(url):
+    global _engine
+
+    if not _engine:
+        _engine = create_engine(url)
+
+    return _engine.connect()
+
 class IdentityRepository(KeyRing):
-    def __init__(self, identity_table, connection=None, db_url=None):
-        self._identities = identity_table
+    def __init__(self, /, connection=None, db_url=None):
+        self._identities = db.GPGMW_IDENTITIES
         self._conn = connection
         self._url = db_url
         self._initialised = connection is not None
@@ -78,8 +89,8 @@ class KeyConfirmationQueue:
     # Default number of items retrieved from the database.
     keys_read_max = 100
 
-    def __init__(self, keys_table, connection):
-        self._keys = keys_table
+    def __init__(self, connection):
+        self._keys = db.GPGMW_KEYS
         self._conn = connection
 
     def fetch_keys(self, /, max_keys=None):
@@ -92,6 +103,15 @@ class KeyConfirmationQueue:
 
         LOG.debug('Retrieving keys to be processed: %s', selq)
         return self._conn.execute(selq)
+
+    def count_keys(self):
+        selq = select(func.count(self._keys.c.id))
+
+        LOG.debug('Counting all keys: %s', selq)
+        c = [cnt for cnt in self._conn.execute(selq)]
+
+        # Result is an iterable of tuples:
+        return c[0][0]
 
     def fetch_keys_to_delete(self):
         seldel = select(self._keys.c.email, self._keys.c.id).where(self._keys.c.status == db.ST_TO_BE_DELETED).limit(self.keys_read_max)
