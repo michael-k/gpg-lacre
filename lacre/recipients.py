@@ -53,13 +53,13 @@ class GpgRecipient(Recipient):
 
     def __init__(self, left, right):
         """Initialise a tuple-like object that contains GPG recipient data."""
-        self._left = left
+        super().__init__(left)
         self._right = right
 
     def __getitem__(self, index):
         """Pretend this object is a tuple by returning an indexed tuple element."""
         if index == 0:
-            return self._left
+            return self.email()
         elif index == 1:
             return self._right
         else:
@@ -67,11 +67,9 @@ class GpgRecipient(Recipient):
 
     def __repr__(self):
         """Return textual representation of this GPG Recipient."""
-        return f"GpgRecipient({self._left!r}, {self._right!r})"
+        return f"GpgRecipient({self.email()!r}, {self._right!r})"
 
-    def email(self) -> str:
-        """Return this recipient's email address."""
-        return self._left
+    __str__ = __repr__
 
     def key(self):
         """Return this recipient's key ID."""
