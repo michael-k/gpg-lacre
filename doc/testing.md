@@ -49,3 +49,11 @@ verifying that the correct key has been used. That's because we don't know
 
 When things go wrong, be sure to study `test/logs/e2e.log` and
 `test/logs/gpg-mailgate.log` files -- they contain some useful information.
+
+## Test identities
+
+There are several identities in test/keyhome and in the test database:
+
+* alice@disposlab: 1CD245308F0963D038E88357973CF4D9387C44D7
+* bob@disposlab: 19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67
+* evan@disposlab: 530B1BB2D0CC7971648198BBA4774E507D3AF5BC

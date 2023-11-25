@@ -34,6 +34,7 @@ from email.utils import parseaddr
 
 LINE_FINGERPRINT = 'fpr'
 LINE_USER_ID = 'uid'
+LINE_PUBLIC_KEY = 'pub'
 
 POS_FINGERPRINT = 9
 POS_UID = 9
@@ -73,16 +74,28 @@ def public_keys(keyhome, *, key_id=None):
     p.wait()
 
     keys = dict()
+    collected = set()
+
     fingerprint = None
     email = None
+
     for line in p.stdout.readlines():
         line = line.decode(sys.getdefaultencoding())
-        if line[0:3] == LINE_FINGERPRINT:
+
+        if line[0:3] == LINE_PUBLIC_KEY:
+            # New identity has started, reset state.
+            fingerprint = None
+            email = None
+
+        if line[0:3] == LINE_FINGERPRINT and not fingerprint:
             fingerprint = _extract_fingerprint(line)
+
         if line[0:3] == LINE_USER_ID:
             email = _parse_uid_line(line)
-        if not (fingerprint is None or email is None):
+
+        if fingerprint and email and not email in collected:
             keys[fingerprint] = email
+            collected.add(email)
             fingerprint = None
             email = None
 
@@ -104,7 +117,8 @@ def _parse_uid_line(line: str):
     if len(userid_line) <= POS_UID:
         return None
     else:
-        return userid_line[POS_UID]
+        (_, email) = parseaddr(userid_line[POS_UID])
+        return email
 
 
 def _to_bytes(s) -> bytes:

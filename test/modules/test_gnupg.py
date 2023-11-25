@@ -1,8 +1,14 @@
 import GnuPG
+import logging
 
 import unittest
 
 class GnuPGUtilitiesTest(unittest.TestCase):
+    def setUp(self):
+        # Record GnuPG logs:
+        logging.basicConfig(filename='test/logs/unittest.log', level=logging.DEBUG,
+                            format='%(asctime)s %(pathname)s:%(lineno)d %(levelname)s [%(funcName)s] %(message)s')
+
     def test_build_default_command(self):
         cmd = GnuPG._build_command("test/keyhome")
         self.assertEqual(cmd, ["gpg", "--homedir", "test/keyhome"])
@@ -38,7 +44,7 @@ class GnuPGUtilitiesTest(unittest.TestCase):
 
     def test_add_delete_key(self):
         self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), { })
-        GnuPG.add_key('test/keyhome', self._load('test/keys/bob@disposlab.pub'))
+        GnuPG.add_key('test/keyhome.other', self._load('test/keys/bob@disposlab.pub'))
         self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), {
             '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67': 'bob@disposlab',
         })
