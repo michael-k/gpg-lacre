@@ -61,9 +61,8 @@ class IdentityRepository(KeyRing):
 
     def _ensure_connected(self):
         if not self._initialised:
-            self._engine = create_engine(self._url)
-            LOG.debug('Connecting with %s', repr(self._engine))
-            self._connection = self._engine.connect()
+            LOG.debug('Connecting with %s', self._url)
+            self._conn = connect(self._url)
 
     def delete(self, email):
         self._ensure_connected()
@@ -78,7 +77,7 @@ class IdentityRepository(KeyRing):
 
     def _load_identities(self) -> KeyCache:
         all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
-        result = self._connection.execute(all_identities)
+        result = self._conn.execute(all_identities)
         LOG.debug('Retrieving all keys')
         return KeyCache({key_id: email for key_id, email in result})
 
