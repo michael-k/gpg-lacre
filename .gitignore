@@ -1,3 +1,6 @@
+# Generated project files:
+test/lacre.db
+
 *.py[cod]
 
 # C extensions
