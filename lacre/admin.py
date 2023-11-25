@@ -25,7 +25,7 @@ def sub_queue(args):
     LOG.debug('Inspecting queue...')
 
     conn = repo.connect(conf.get_item('database', 'url'))
-    queue = repo.KeyConfirmationQueue(db.GPGMW_KEYS, conn)
+    queue = repo.KeyConfirmationQueue(conn)
 
     cnt = queue.count_keys()
 
