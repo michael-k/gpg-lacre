@@ -32,6 +32,24 @@ def sub_queue(args):
     print(f'Keys in the queue: {cnt}')
 
 
+def sub_identities(args):
+    """Sub-command to inspect identity database."""
+    LOG.debug('Inspecting identities...')
+
+    conn = repo.connect(conf.get_item('database', 'url'))
+    identities = repo.IdentityRepository(conn)
+
+    all_identities = identities.freeze_identities()
+    if args.all:
+        for id_ in all_identities:
+            print('-', all_identities[id_], id_)
+    elif args.email:
+        all_rev = all_identities.emails()
+        print('-', args.email, all_rev[args.email])
+    else:
+        exit(lacre.EX_UNAVAILABLE)
+
+
 def main():
     conf.validate_config(additional=conf.SCRIPT_REQUIRED)
 
@@ -54,13 +72,13 @@ def main():
         )
     cmd_queue.set_defaults(operation=sub_queue)
 
-    # cmd_identities = sub_commands.add_parser('identities',
-    #     help='Inspect identity database',
-    #     aliases=['id']
-    #     )
-    # cmd_identities.add_argument('-e', '--email', help='Check single email')
-    # cmd_identities.add_argument('-a', '--all', help='List all emails', action='store_true')
-    # cmd_identities.set_defaults(operation=sub_identities)
+    cmd_identities = sub_commands.add_parser('identities',
+        help='Inspect identity database',
+        aliases=['id']
+        )
+    cmd_identities.add_argument('-e', '--email', help='Check single email')
+    cmd_identities.add_argument('-a', '--all', help='List all emails', action='store_true')
+    cmd_identities.set_defaults(operation=sub_identities)
 
     user_request = parser.parse_args()
     user_request.operation(user_request)

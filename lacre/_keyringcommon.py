@@ -36,6 +36,12 @@ class KeyCache:
         details = ' '.join(self._keys.keys())
         return '<KeyCache %s>' % (details)
 
+    def __iter__(self):
+        return iter(self._keys.keys())
+
+    def emails(self):
+        return { email: fingerprint for (fingerprint, email) in self._keys.items() }
+
 
 class KeyRing:
     """Contract to be implemented by a key-store (a.k.a. keyring)."""
