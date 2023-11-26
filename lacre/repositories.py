@@ -1,6 +1,7 @@
 """Lacre identity and key repositories."""
 
 from sqlalchemy import create_engine, select, delete, and_, func
+from sqlalchemy.exc import OperationalError
 import logging
 
 from lacre._keyringcommon import KeyRing, KeyCache
@@ -73,7 +74,11 @@ class IdentityRepository(KeyRing):
     def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
         self._ensure_connected()
-        return self._load_identities()
+        try:
+            return self._load_identities()
+        except OperationalError:
+            LOG.exception('Cannot retrieve identities')
+            return None
 
     def _load_identities(self) -> KeyCache:
         all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
@@ -107,10 +112,14 @@ class KeyConfirmationQueue:
         selq = select(func.count(self._keys.c.id))
 
         LOG.debug('Counting all keys: %s', selq)
-        c = [cnt for cnt in self._conn.execute(selq)]
+        try:
+            c = [cnt for cnt in self._conn.execute(selq)]
 
-        # Result is an iterable of tuples:
-        return c[0][0]
+            # Result is an iterable of tuples:
+            return c[0][0]
+        except OperationalError:
+            LOG.exception('Cannot count keys')
+            return None
 
     def fetch_keys_to_delete(self):
         seldel = select(self._keys.c.email, self._keys.c.id).where(self._keys.c.status == db.ST_TO_BE_DELETED).limit(self.keys_read_max)

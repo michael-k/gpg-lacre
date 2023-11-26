@@ -21,6 +21,11 @@ import lacre.dbschema as db
 LOG = logging.getLogger('lacre.admin')
 
 
+def _no_database():
+    print('Database unavailable or not configured properly')
+    exit(lacre.EX_CONFIG)
+
+
 def sub_queue(args):
     """Sub-command to inspect queue contents."""
     LOG.debug('Inspecting queue...')
@@ -29,6 +34,9 @@ def sub_queue(args):
     queue = repo.KeyConfirmationQueue(conn)
 
     cnt = queue.count_keys()
+
+    if cnt is None:
+        _no_database()
 
     print(f'Keys in the queue: {cnt}')
 
@@ -41,6 +49,9 @@ def sub_identities(args):
     identities = repo.IdentityRepository(conn)
 
     all_identities = identities.freeze_identities()
+    if all_identities is None:
+        _no_database()
+
     if args.email:
         all_rev = all_identities.emails()
         print('-', args.email, all_rev[args.email])
