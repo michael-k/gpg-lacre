@@ -65,7 +65,9 @@ def _build_command(key_home, *args, **kwargs):
 
 
 def public_keys(keyhome, *, key_id=None):
-    """List public keys from keyring KEYHOME."""
+    """List public keys from keyring KEYHOME.
+
+    Returns a dict with fingerprints as keys and email as values."""
     cmd = _build_command(keyhome, '--list-keys', '--with-colons')
     if key_id is not None:
         cmd.append(key_id)
