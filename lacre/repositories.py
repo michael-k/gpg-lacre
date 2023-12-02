@@ -23,7 +23,7 @@ def connect(url):
 
 class IdentityRepository(KeyRing):
     def __init__(self, /, connection=None, db_url=None):
-        self._identities = db.GPGMW_IDENTITIES
+        self._identities = db.LACRE_IDENTITIES
         self._conn = connection
         self._url = db_url
         self._initialised = connection is not None
@@ -88,13 +88,13 @@ class IdentityRepository(KeyRing):
 
 
 class KeyConfirmationQueue:
-    """Encapsulates access to gpgmw_keys table."""
+    """Encapsulates access to lacre_keys table."""
 
     # Default number of items retrieved from the database.
     keys_read_max = 100
 
     def __init__(self, connection):
-        self._keys = db.GPGMW_KEYS
+        self._keys = db.LACRE_KEYS
         self._conn = connection
 
     def fetch_keys(self, /, max_keys=None):

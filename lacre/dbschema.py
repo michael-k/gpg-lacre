@@ -2,21 +2,21 @@
 
 This definition includes:
 
-- 'gpgmw_keys' -- temporary key storage, used by the frontend to submit keys and
+- 'lacre_keys' -- temporary key storage, used by the frontend to submit keys and
   by webgate-cron script to import submitted keys.
 
-- 'gpgmw_identities' -- identity catalogue, used by encryption logic to match
+- 'lacre_identities' -- identity catalogue, used by encryption logic to match
   emails with corresponding keys.
 """
 
 import sqlalchemy
 
-# Values for gpgmw_keys.status column:
+# Values for lacre_keys.status column:
 ST_DEFAULT, ST_IMPORTED, ST_TO_BE_DELETED = range(3)
 
 _meta = sqlalchemy.MetaData()
 
-GPGMW_KEYS = sqlalchemy.Table('gpgmw_keys', _meta,
+LACRE_KEYS = sqlalchemy.Table('lacre_keys', _meta,
                               sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
                               sqlalchemy.Column('email', sqlalchemy.String(256)),
                               # ASCII-armored key
@@ -26,13 +26,13 @@ GPGMW_KEYS = sqlalchemy.Table('gpgmw_keys', _meta,
                               sqlalchemy.Column('status', sqlalchemy.Integer),
                               sqlalchemy.Column('time', sqlalchemy.DateTime))
 
-GPGMW_IDENTITIES = sqlalchemy.Table('gpgmw_identities', _meta,
+LACRE_IDENTITIES = sqlalchemy.Table('lacre_identities', _meta,
                                     sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
                                     # Key fingerprint
                                     sqlalchemy.Column('fingerprint', sqlalchemy.String(64), index=True))
 
 def init_identities_table() -> sqlalchemy.Table:
-    return GPGMW_IDENTITIES
+    return LACRE_IDENTITIES
 
 def table_metadata():
     return _meta

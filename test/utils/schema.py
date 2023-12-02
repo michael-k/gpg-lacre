@@ -5,7 +5,7 @@ from sqlalchemy.sql import insert
 def define_db_schema():
     meta = sqlalchemy.MetaData()
 
-    gpgmw_keys = sqlalchemy.Table('gpgmw_keys', meta,
+    lacre_keys = sqlalchemy.Table('lacre_keys', meta,
                                   sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
                                   sqlalchemy.Column('email', sqlalchemy.String(256)),
                                   sqlalchemy.Column('publickey', sqlalchemy.Text),
@@ -13,17 +13,17 @@ def define_db_schema():
                                   sqlalchemy.Column('status', sqlalchemy.Integer),
                                   sqlalchemy.Column('time', sqlalchemy.DateTime))
 
-    identities = sqlalchemy.Table('gpgmw_identities', meta,
+    identities = sqlalchemy.Table('lacre_identities', meta,
         sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
         sqlalchemy.Column('fingerprint', sqlalchemy.String(64), index=True))
 
-    return (meta, gpgmw_keys, identities)
+    return (meta, lacre_keys, identities)
 
 if len(sys.argv) != 2:
     print("ERROR: output database missing")
     sys.exit(1)
 
-(meta, gpgmw_keys, identities) = define_db_schema()
+(meta, lacre_keys, identities) = define_db_schema()
 
 dbname = sys.argv[1]
 test_db = sqlalchemy.create_engine(f"sqlite:///{dbname}")
@@ -34,7 +34,7 @@ meta.create_all(test_db)
 conn = test_db.connect()
 
 # Populate the database with dummy data
-conn.execute(gpgmw_keys.insert(), [
+conn.execute(lacre_keys.insert(), [
     {"id": 1, "email": "alice@disposlab", "publickey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 \n\
 mQGNBGDYY5oBDAC+HAVjA05jsIpHfQ2KQ9m2olo1Qnlk+dkjD+Gagxj1ACezyiGL\n\

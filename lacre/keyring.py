@@ -6,7 +6,6 @@ module.
 
 import lacre.config as conf
 from lacre._keyringcommon import KeyRing, KeyCache
-from lacre.dbschema import GPGMW_IDENTITIES
 from lacre.repositories import IdentityRepository
 import logging
 
