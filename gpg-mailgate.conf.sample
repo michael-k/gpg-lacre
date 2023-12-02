@@ -27,10 +27,6 @@ mail_case_insensitive = no
 # i.e. have mode 700.
 keyhome = /var/gpgmailgate/.gnupg
 
-[keyring]
-# Only required when type==DatabaseKeyRing, specifies the database URL.
-#url = file:///path/to/sqlite.db
-
 [smime]
 # the directory for the S/MIME certificate files
 cert_path = /var/gpgmailgate/smime
