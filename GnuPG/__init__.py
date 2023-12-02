@@ -27,14 +27,21 @@ import random
 import string
 import sys
 import logging
+import re
+import tempfile
+from email.utils import parseaddr
 
 
 LINE_FINGERPRINT = 'fpr'
 LINE_USER_ID = 'uid'
+LINE_PUBLIC_KEY = 'pub'
 
 POS_FINGERPRINT = 9
+POS_UID = 9
 
 LOG = logging.getLogger(__name__)
+
+RX_CONFIRM = re.compile(br'key "([^"]+)" imported')
 
 
 class EncryptionException(Exception):
@@ -57,31 +64,63 @@ def _build_command(key_home, *args, **kwargs):
     return cmd
 
 
-def public_keys(keyhome):
-    """List public keys from keyring KEYHOME."""
+def public_keys(keyhome, *, key_id=None):
+    """List public keys from keyring KEYHOME.
+
+    Returns a dict with fingerprints as keys and email as values."""
     cmd = _build_command(keyhome, '--list-keys', '--with-colons')
+    if key_id is not None:
+        cmd.append(key_id)
+
     p = subprocess.Popen(cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
 
     keys = dict()
+    collected = set()
+
     fingerprint = None
     email = None
+
     for line in p.stdout.readlines():
         line = line.decode(sys.getdefaultencoding())
-        if line[0:3] == LINE_FINGERPRINT:
-            fingerprint = line.split(':')[POS_FINGERPRINT]
+
+        if line[0:3] == LINE_PUBLIC_KEY:
+            # New identity has started, reset state.
+            fingerprint = None
+            email = None
+
+        if line[0:3] == LINE_FINGERPRINT and not fingerprint:
+            fingerprint = _extract_fingerprint(line)
+
         if line[0:3] == LINE_USER_ID:
-            if ('<' not in line or '>' not in line):
-                continue
-            email = line.split('<')[1].split('>')[0]
-        if not (fingerprint is None or email is None):
+            email = _parse_uid_line(line)
+
+        if fingerprint and email and not email in collected:
             keys[fingerprint] = email
+            collected.add(email)
             fingerprint = None
             email = None
 
     p.stdout.close()
     p.stderr.close()
     return keys
+
+
+def _extract_fingerprint(line):
+    fpr_line = line.split(':')
+    if len(fpr_line) <= POS_FINGERPRINT:
+        return None
+    else:
+        return fpr_line[POS_FINGERPRINT]
+
+
+def _parse_uid_line(line: str):
+    userid_line = line.split(':')
+    if len(userid_line) <= POS_UID:
+        return None
+    else:
+        (_, email) = parseaddr(userid_line[POS_UID])
+        return email
 
 
 def _to_bytes(s) -> bytes:
@@ -94,32 +133,21 @@ def _to_bytes(s) -> bytes:
 # Confirms a key has a given email address by importing it into a temporary
 # keyring.  If this operation succeeds and produces a message mentioning the
 # expected email, a key is confirmed.
-def confirm_key(content, email):
+def confirm_key(content, email: str):
     """Verify that the key CONTENT is assigned to identity EMAIL."""
-    tmpkeyhome = ''
     content = _to_bytes(content)
-    expected_email = _to_bytes(email.lower())
+    expected_email = email.lower()
 
-    while True:
-        tmpkeyhome = '/tmp/' + ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(12))
-        if not os.path.exists(tmpkeyhome):
-            break
+    tmpkeyhome = tempfile.mkdtemp()
 
-    # let only the owner access the directory, otherwise gpg would complain
-    os.mkdir(tmpkeyhome, mode=0o700)
-    localized_env = os.environ.copy()
-    localized_env["LANG"] = "C"
-    p = subprocess.Popen(_build_command(tmpkeyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env)
-    result = p.communicate(input=content)[1]
+    result = _import_key(tmpkeyhome, content)
     confirmed = False
 
-    for line in result.split(b"\n"):
-        if b'imported' in line and b'<' in line and b'>' in line:
-            if line.split(b'<')[1].split(b'>')[0].lower() == expected_email:
-                confirmed = True
-                break
-            else:
-                break # confirmation failed
+    for line in result.splitlines():
+        found = RX_CONFIRM.search(line)
+        if found:
+            (_, extracted_email) = parseaddr(found.group(1).decode())
+            confirmed = (extracted_email == expected_email)
 
     # cleanup
     shutil.rmtree(tmpkeyhome)
@@ -127,19 +155,44 @@ def confirm_key(content, email):
     return confirmed
 
 
+def _import_key(keyhome, content):
+    content = _to_bytes(content)
+
+    # Ensure we get expected output regardless of the system locale.
+    localized_env = os.environ.copy()
+    localized_env["LANG"] = "C"
+
+    p = subprocess.Popen(_build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=localized_env)
+    output = p.communicate(input=content)[1]
+    p.wait()
+
+    return output
+
+
 # adds a key and ensures it has the given email address
 def add_key(keyhome, content):
     """Register new key CONTENT in the keyring KEYHOME."""
-    if isinstance(content, str):
-        content = bytes(content, sys.getdefaultencoding())
-    p = subprocess.Popen(_build_command(keyhome, '--import', '--batch'), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p.communicate(input=content)
-    p.wait()
+    output = _import_key(keyhome, content)
+
+    email = None
+    for line in output.splitlines():
+        found = RX_CONFIRM.search(line)
+        if found:
+            (_, extracted_email) = parseaddr(found.group(1).decode())
+            email = extracted_email
+
+    # Find imported key to get its fingerprint
+    imported = public_keys(keyhome, key_id=email)
+
+    if len(imported.keys()) == 1:
+        fingerprint = list(imported.keys())[0]
+        return fingerprint, imported[fingerprint]
+    else:
+        return None, None
 
 
 def delete_key(keyhome, email):
     """Remove key assigned to identity EMAIL from keyring KEYHOME."""
-    from email.utils import parseaddr
     result = parseaddr(email)
 
     if result[1]:
@@ -149,6 +202,7 @@ def delete_key(keyhome, email):
         p.wait()
         return True
 
+    LOG.warn('Failed to parse email before deleting key: %s', email)
     return False
 
 
@@ -243,6 +297,8 @@ KEY_EXPIRED       = b'KEYEXPIRED'
 KEY_REVOKED       = b'KEYREVOKED'
 NO_RECIPIENTS     = b'NO_RECP'
 INVALID_RECIPIENT = b'INV_RECP'
+KEY_CONSIDERED    = b'KEY_CONSIDERED'
+NOAVAIL           = b'n/a'
 
 # INV_RECP reason code descriptions.
 INVALID_RECIPIENT_CAUSES = [
@@ -271,7 +327,7 @@ def parse_status(status_buffer: str) -> dict:
 
 def parse_status_lines(lines: list) -> dict:
     """Parse --status-fd output and return important information."""
-    result = {'issue': 'n/a', 'recipient': 'n/a', 'cause': 'Unknown'}
+    result = {'issue': NOAVAIL, 'recipient': NOAVAIL, 'cause': 'Unknown', 'key': NOAVAIL}
 
     LOG.debug('Processing stderr lines %s', lines)
 
@@ -286,6 +342,8 @@ def parse_status_lines(lines: list) -> dict:
             result['issue'] = KEY_REVOKED
         elif line.startswith(NO_RECIPIENTS, STATUS_FD_PREFIX_LEN):
             result['issue'] = NO_RECIPIENTS
+        elif line.startswith(KEY_CONSIDERED, STATUS_FD_PREFIX_LEN):
+            result['key'] = line.split(b' ')[2]
         elif line.startswith(INVALID_RECIPIENT, STATUS_FD_PREFIX_LEN):
             words = line.split(b' ')
             reason_code = int(words[2])

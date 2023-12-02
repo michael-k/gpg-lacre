@@ -36,9 +36,11 @@ import lacre.core as core
 
 LOG = logging.getLogger('gpg-mailgate.py')
 
-missing_params = conf.validate_config()
+missing_params = conf.validate_config(additional=conf.SCRIPT_REQUIRED)
+config_file = conf.config_source()
+
 if missing_params:
-    LOG.error(f"Aborting delivery! Following mandatory config parameters are missing: {missing_params!r}")
+    LOG.error(f"Aborting delivery! Following mandatory config parameters are missing in {config_file!r}: {missing_params}")
     sys.exit(lacre.EX_CONFIG)
 
 delivered = False

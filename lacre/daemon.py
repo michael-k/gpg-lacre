@@ -3,6 +3,7 @@
 import logging
 import lacre
 from lacre.text import DOUBLE_EOL_BYTES
+from lacre.stats import time_logger
 import lacre.config as conf
 import sys
 from aiosmtpd.controller import Controller
@@ -10,8 +11,6 @@ from aiosmtpd.smtp import Envelope
 import asyncio
 import email
 from email.policy import SMTPUTF8
-import time
-from watchdog.observers import Observer
 
 # Load configuration and init logging, in this order.  Only then can we load
 # the last Lacre module, i.e. lacre.mailgate.
@@ -35,50 +34,47 @@ class MailEncryptionProxy:
 
     async def handle_DATA(self, server, session, envelope: Envelope):
         """Accept a message and either encrypt it or forward as-is."""
-        start = time.process_time()
-        try:
-            keys = await self._keyring.freeze_identities()
-            LOG.debug('Parsing message: %s', self._beginning(envelope))
-            message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
-            LOG.debug('Parsed into %s: %s', type(message), repr(message))
+        with time_logger('Message delivery', LOG):
+            try:
+                keys = self._keyring.freeze_identities()
+                LOG.debug('Parsing message: %s', self._beginning(envelope))
+                message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
+                LOG.debug('Parsed into %s: %s', type(message), repr(message))
 
-            if message.defects:
-                # Sometimes a weird message cannot be encoded back and
-                # delivered, so before bouncing such messages we at least
-                # record information about the issues.  Defects are identified
-                # by email.* package.
-                LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
+                if message.defects:
+                    # Sometimes a weird message cannot be encoded back and
+                    # delivered, so before bouncing such messages we at least
+                    # record information about the issues.  Defects are identified
+                    # by email.* package.
+                    LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
 
-            if conf.flag_enabled('daemon', 'log_headers'):
-                LOG.info('Message headers: %s', self._extract_headers(message))
+                if conf.flag_enabled('daemon', 'log_headers'):
+                    LOG.info('Message headers: %s', self._extract_headers(message))
 
-            send = xport.SendFrom(envelope.mail_from)
-            for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
-                LOG.debug(f"Sending mail via {operation!r}")
-                try:
-                    new_message = operation.perform(message)
-                    send(new_message, operation.recipients())
-                except EncryptionException:
-                    # If the message can't be encrypted, deliver cleartext.
-                    LOG.exception('Unable to encrypt message, delivering in cleartext')
-                    if not isinstance(operation, KeepIntact):
-                        self._send_unencrypted(operation, message, envelope, send)
-                    else:
-                        LOG.error(f'Cannot perform {operation}')
+                send = xport.SendFrom(envelope.mail_from)
+                for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
+                    LOG.debug(f"Sending mail via {operation!r}")
+                    try:
+                        new_message = operation.perform(message)
+                        send(new_message, operation.recipients())
+                    except EncryptionException:
+                        # If the message can't be encrypted, deliver cleartext.
+                        LOG.exception('Unable to encrypt message, delivering in cleartext')
+                        if not isinstance(operation, KeepIntact):
+                            self._send_unencrypted(operation, message, envelope, send)
+                        else:
+                            LOG.error(f'Cannot perform {operation}')
 
-        except:
-            LOG.exception('Unexpected exception caught, bouncing message')
-            return xport.RESULT_ERROR
-
-        ellapsed = (time.process_time() - start) * 1000
-        LOG.info(f'Message delivered in {ellapsed:.2f} ms')
+            except:
+                LOG.exception('Unexpected exception caught, bouncing message')
+                return xport.RESULT_ERROR
 
         return xport.RESULT_OK
 
     def _send_unencrypted(self, operation, message, envelope, send: xport.SendFrom):
         keep = KeepIntact(operation.recipients())
         new_message = keep.perform(message)
-        send(new_message, operation.recipients(), envelope.mail_from)
+        send(new_message, operation.recipients())
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
@@ -96,6 +92,9 @@ class MailEncryptionProxy:
             'cte'      : message['Content-Transfer-Encoding']
             }
 
+    def _seconds_between(self, start_ms, end_ms) -> float:
+        return (end_ms - start_ms) * 1000
+
 
 def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
@@ -104,13 +103,6 @@ def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5)
     return Controller(proxy, hostname=host, port=port,
                       ready_timeout=tout,
                       data_size_limit=max_body_bytes)
-
-
-def _init_reloader(keyring_dir: str, reloader) -> kcache.KeyringModificationListener:
-    listener = kcache.KeyringModificationListener(reloader)
-    observer = Observer()
-    observer.schedule(listener, keyring_dir, recursive=False)
-    return observer
 
 
 def _validate_config():
@@ -130,7 +122,7 @@ async def _sleep():
         await asyncio.sleep(360)
 
 
-def _main():
+async def _main():
     _validate_config()
 
     keyring_path = conf.get_item('gpg', 'keyhome')
@@ -138,30 +130,27 @@ def _main():
 
     loop = asyncio.get_event_loop()
 
-    keyring = kcache.KeyRing(keyring_path, loop)
-    controller = _init_controller(keyring, max_data_bytes)
-    reloader = _init_reloader(keyring_path, keyring)
-
-    LOG.info(f'Watching keyring directory {keyring_path}...')
-    reloader.start()
-
-    LOG.info('Starting the daemon...')
-    controller.start()
-
     try:
-        loop.run_until_complete(_sleep())
+        keyring = kcache.init_keyring()
+        controller = _init_controller(keyring, max_data_bytes)
+
+        keyring.post_init_hook()
+
+        LOG.info('Starting the daemon...')
+        controller.start()
+
+        await _sleep()
     except KeyboardInterrupt:
         LOG.info("Finishing...")
     except:
         LOG.exception('Unexpected exception caught, your system may be unstable')
     finally:
         LOG.info('Shutting down keyring watcher and the daemon...')
-        reloader.stop()
-        reloader.join()
+        keyring.shutdown()
         controller.stop()
 
     LOG.info("Done")
 
 
 if __name__ == '__main__':
-    _main()
+    asyncio.run(_main())

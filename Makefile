@@ -7,17 +7,23 @@
 #
 #     make test PYTHON=/usr/local/bin/python3.8
 #
-# This marco is passed via environment to test/e2e_test.py, where it's
+# This macro is passed via environment to test/e2e_test.py, where it's
 # used to compute further commands.
 #
-PYTHON = python3
+PYTHON = python
 
+#
+# SQLite database used during tests
+#
+# This database stores key queue and identity repository for e2etest,
+# daemontest, and crontest.
+#
 TEST_DB = test/lacre.db
 
 #
-# Main goal to run tests.
+# Main goal to run all tests.
 #
-test: e2etest unittest daemontest crontest
+test: e2etest daemontest unittest crontest
 
 #
 # Run a set of end-to-end tests.
@@ -37,7 +43,8 @@ e2etest: test/tmp test/logs pre-clean restore-keyhome
 # it slurps the right config.
 #
 crontest: clean-db $(TEST_DB)
-	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd` $(PYTHON) webgate-cron.py
+	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd`	\
+	$(PYTHON) webgate-cron.py
 
 $(TEST_DB):
 	$(PYTHON) test/utils/schema.py $(TEST_DB)
@@ -45,7 +52,7 @@ $(TEST_DB):
 #
 # Run an e2e test of Advanced Content Filter.
 #
-daemontest:
+daemontest: restore-keyhome
 	$(PYTHON) test/daemon_test.py
 
 # Before running the crontest goal we need to make sure that the
@@ -65,6 +72,7 @@ pre-clean:
 
 restore-keyhome:
 	git restore test/keyhome
+	git restore test/keyhome.other
 
 test/tmp:
 	mkdir test/tmp
@@ -72,5 +80,5 @@ test/tmp:
 test/logs:
 	mkdir test/logs
 
-clean: pre-clean
+clean: pre-clean clean-db
 	rm -rfv test/tmp test/logs

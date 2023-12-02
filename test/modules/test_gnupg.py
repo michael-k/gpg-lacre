@@ -1,8 +1,14 @@
 import GnuPG
+import logging
 
 import unittest
 
 class GnuPGUtilitiesTest(unittest.TestCase):
+    def setUp(self):
+        # Record GnuPG logs:
+        logging.basicConfig(filename='test/logs/unittest.log', level=logging.DEBUG,
+                            format='%(asctime)s %(pathname)s:%(lineno)d %(levelname)s [%(funcName)s] %(message)s')
+
     def test_build_default_command(self):
         cmd = GnuPG._build_command("test/keyhome")
         self.assertEqual(cmd, ["gpg", "--homedir", "test/keyhome"])
@@ -37,17 +43,27 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         self.assertDictEqual(keys, known_identities)
 
     def test_add_delete_key(self):
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
-        GnuPG.add_key('/tmp', self._load('test/keys/bob@disposlab.pub'))
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), {
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), { })
+        GnuPG.add_key('test/keyhome.other', self._load('test/keys/bob@disposlab.pub'))
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), {
             '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67': 'bob@disposlab',
         })
-        GnuPG.delete_key('/tmp', 'bob@disposlab')
-        self.assertDictEqual(GnuPG.public_keys('/tmp'), { })
+        GnuPG.delete_key('test/keyhome.other', 'bob@disposlab')
+        self.assertDictEqual(GnuPG.public_keys('test/keyhome.other'), { })
 
     def _load(self, filename):
         with open(filename) as f:
             return f.read()
+
+    def test_extract_fingerprint(self):
+        sample_in = '''fpr:::::::::1CD245308F0963D038E88357973CF4D9387C44D7:'''
+        fpr = GnuPG._extract_fingerprint(sample_in)
+        self.assertEqual(fpr, '1CD245308F0963D038E88357973CF4D9387C44D7')
+
+    def test_parse_uid_line(self):
+        sample_in = '''uid:e::::1624794010::C16E259AA1435947C6385B8160BC020B6C05EE18::alice@disposlab::::::::::0:'''
+        uid = GnuPG._parse_uid_line(sample_in)
+        self.assertEqual(uid, 'alice@disposlab')
 
     def test_parse_statusfd_key_expired(self):
         key_expired = b"""
@@ -56,10 +72,24 @@ class GnuPGUtilitiesTest(unittest.TestCase):
 [GNUPG:] INV_RECP 0 name@domain
 [GNUPG:] FAILURE encrypt 1
 """
+
         result = GnuPG.parse_status(key_expired)
         self.assertEqual(result['issue'], b'KEYEXPIRED')
         self.assertEqual(result['recipient'], b'name@domain')
         self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['key'], b'XXXXXXXXXXXXX')
+
+    def test_parse_statusfd_key_absent(self):
+        non_specific_errors = b"""
+[GNUPG:] INV_RECP 0 name@domain
+[GNUPG:] FAILURE encrypt 1
+"""
+
+        result = GnuPG.parse_status(non_specific_errors)
+        self.assertEqual(result['issue'], b'n/a')
+        self.assertEqual(result['recipient'], b'name@domain')
+        self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['key'], b'n/a')
 
 
 if __name__ == '__main__':

@@ -3,23 +3,27 @@ import sqlalchemy
 from sqlalchemy.sql import insert
 
 def define_db_schema():
-	meta = sqlalchemy.MetaData()
+    meta = sqlalchemy.MetaData()
 
-	gpgmw_keys = sqlalchemy.Table('gpgmw_keys', meta,
-								  sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
-								  sqlalchemy.Column('email', sqlalchemy.String(256)),
-								  sqlalchemy.Column('publickey', sqlalchemy.Text),
-								  sqlalchemy.Column('confirm', sqlalchemy.String(32)),
-								  sqlalchemy.Column('status', sqlalchemy.Integer),
-								  sqlalchemy.Column('time', sqlalchemy.DateTime))
+    lacre_keys = sqlalchemy.Table('lacre_keys', meta,
+                                  sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
+                                  sqlalchemy.Column('email', sqlalchemy.String(256)),
+                                  sqlalchemy.Column('publickey', sqlalchemy.Text),
+                                  sqlalchemy.Column('confirm', sqlalchemy.String(32)),
+                                  sqlalchemy.Column('status', sqlalchemy.Integer),
+                                  sqlalchemy.Column('time', sqlalchemy.DateTime))
 
-	return (meta, gpgmw_keys)
+    identities = sqlalchemy.Table('lacre_identities', meta,
+        sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
+        sqlalchemy.Column('fingerprint', sqlalchemy.String(64), index=True))
+
+    return (meta, lacre_keys, identities)
 
 if len(sys.argv) != 2:
-	print("ERROR: output database missing")
-	sys.exit(1)
+    print("ERROR: output database missing")
+    sys.exit(1)
 
-(meta, gpgmw_keys) = define_db_schema()
+(meta, lacre_keys, identities) = define_db_schema()
 
 dbname = sys.argv[1]
 test_db = sqlalchemy.create_engine(f"sqlite:///{dbname}")
@@ -30,8 +34,8 @@ meta.create_all(test_db)
 conn = test_db.connect()
 
 # Populate the database with dummy data
-conn.execute(gpgmw_keys.insert(), [
-	{"id": 1, "email": "alice@disposlab", "publickey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+conn.execute(lacre_keys.insert(), [
+    {"id": 1, "email": "alice@disposlab", "publickey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 \n\
 mQGNBGDYY5oBDAC+HAVjA05jsIpHfQ2KQ9m2olo1Qnlk+dkjD+Gagxj1ACezyiGL\n\
 cfZfoE/MJYLCH9yPcX1fUIAPwdAyfJKlvkVcz+MhEpgl3aP3NM2L2unSx3v9ZFwT\n\
@@ -73,7 +77,7 @@ pw==\n\
 =Tbwz\n\
 -----END PGP PUBLIC KEY BLOCK-----\
 ", "status": 0, "confirm": "", "time": None},
-	{"id": 2, "email": "bob@disposlab",   "publickey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+    {"id": 2, "email": "bob@disposlab",   "publickey": "-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 \n\
 mDMEYdTFkRYJKwYBBAHaRw8BAQdA2tgdP1pMt3cv3XAW7ov5AFn74mMZvyTksp9Q\n\
 eO1PkpK0GkJvYiBGb29iYXIgPGJvYkBkaXNwb3NsYWI+iJYEExYIAD4WIQQZz0tH\n\
@@ -87,5 +91,11 @@ OjjB6xRD0Q2FN+alsNGCtdutAs18AZ5l33RMzws=\n\
 =wWoq\n\
 -----END PGP PUBLIC KEY BLOCK-----\
 ", "status": 0, "confirm": "", "time": None},
-	{"id": 3, "email": "cecil@lacre.io", "publickey": "RUBBISH", "status": 0, "confirm": "", "time": None}
-	])
+    {"id": 3, "email": "cecil@lacre.io", "publickey": "RUBBISH", "status": 0, "confirm": "", "time": None}
+    ])
+
+conn.execute(identities.insert(), [
+    {'fingerprint': '1CD245308F0963D038E88357973CF4D9387C44D7', 'email': 'alice@disposlab'},
+    {'fingerprint': '19CF4B47ECC9C47AFA84D4BD96F39FDA0E31BB67', 'email': 'bob@disposlab'},
+    {'fingerprint': '530B1BB2D0CC7971648198BBA4774E507D3AF5BC', 'email': 'evan@disposlab'}
+   ])

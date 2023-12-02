@@ -19,9 +19,7 @@
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import GnuPG
 import sqlalchemy
-from sqlalchemy.sql import select, delete, and_
 import smtplib
 import markdown
 from email.mime.text import MIMEText
@@ -30,65 +28,8 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import lacre
 import lacre.config as conf
-
-
-def _load_file(name):
-    f = open(name)
-    data = f.read()
-    f.close()
-    return data
-
-
-def _authenticate_maybe(smtp):
-    if conf.config_item_equals('smtp', 'enabled', 'true'):
-        LOG.debug(f"Connecting to {conf.get_item('smtp', 'host')}:{conf.get_item('smtp', 'port')}")
-        smtp.connect(conf.get_item('smtp', 'host'), conf.get_item('smtp', 'port'))
-        smtp.ehlo()
-        if conf.config_item_equals('smtp', 'starttls', 'true'):
-            LOG.debug("StartTLS enabled")
-            smtp.starttls()
-        smtp.ehlo()
-        smtp.login(conf.get_item('smtp', 'username'), conf.get_item('smtp', 'password'))
-
-
-def _send_msg(mailsubject, messagefile, recipients = None):
-    mailbody = _load_file(conf.get_item('cron', 'mail_templates') + "/" + messagefile)
-    msg = MIMEMultipart("alternative")
-
-    msg["From"] = conf.get_item('cron', 'notification_email')
-    msg["To"] = recipients
-    msg["Subject"] = mailsubject
-
-    msg.attach(MIMEText(mailbody, 'plain'))
-    msg.attach(MIMEText(markdown.markdown(mailbody), 'html'))
-
-    if conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'enc_port'):
-        relay = (conf.get_item('relay', 'host'), int(conf.get_item('relay', 'enc_port')))
-        smtp = smtplib.SMTP(relay[0], relay[1])
-        _authenticate_maybe(smtp)
-        smtp.sendmail(conf.get_item('cron', 'notification_email'), recipients, msg.as_string())
-    else:
-        LOG.info("Could not send mail due to wrong configuration")
-
-
-def _setup_db_connection(url):
-    engine = sqlalchemy.create_engine(url)
-    return (engine, engine.connect())
-
-
-def _define_db_schema():
-    meta = sqlalchemy.MetaData()
-
-    gpgmw_keys = sqlalchemy.Table('gpgmw_keys', meta,
-                                  sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
-                                  sqlalchemy.Column('email', sqlalchemy.String(256)),
-                                  sqlalchemy.Column('publickey', sqlalchemy.Text),
-                                  sqlalchemy.Column('confirm', sqlalchemy.String(32)),
-                                  sqlalchemy.Column('status', sqlalchemy.Integer),
-                                  sqlalchemy.Column('time', sqlalchemy.DateTime))
-
-    return (gpgmw_keys)
-
+import lacre.dbschema as db
+from lacre.notify import notify
 
 # Read configuration from /etc/gpg-mailgate.conf
 conf.load_config()
@@ -96,59 +37,65 @@ conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 LOG = logging.getLogger('webgate-cron.py')
 
+import GnuPG
+from lacre.repositories import KeyConfirmationQueue, IdentityRepository, connect
 
-if conf.config_item_equals('database', 'enabled', 'yes') and conf.config_item_set('database', 'url'):
-    (engine, conn) = _setup_db_connection(conf.get_item("database", "url"))
-    (gpgmw_keys) = _define_db_schema()
 
-    selq = select(gpgmw_keys.c.publickey, gpgmw_keys.c.id, gpgmw_keys.c.email)\
-        .where(and_(gpgmw_keys.c.status == 0, gpgmw_keys.c.confirm == ""))\
-        .limit(100)
-    LOG.debug(f"Retrieving keys to be processed: {selq}")
-    result_set = conn.execute(selq)
+def _validate_config():
+    missing = conf.validate_config(additional=conf.CRON_REQUIRED)
+    if missing:
+        LOG.error('Missing config parameters: %s', missing)
+        exit(lacre.EX_CONFIG)
 
-    for key_id, row_id, email in result_set:
+
+_validate_config()
+
+if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url'):
+    conn = connect(conf.get_item('database', 'url'))
+
+    identities = IdentityRepository(conn)
+    key_queue = KeyConfirmationQueue(conn)
+
+    key_dir = conf.get_item('gpg', 'keyhome')
+    LOG.debug('Using GnuPG with home directory in %s', key_dir)
+
+    result_set = key_queue.fetch_keys()
+
+    for armored_key, row_id, email in result_set:
         # delete any other public keys associated with this confirmed email address
-        delq = delete(gpgmw_keys).where(and_(gpgmw_keys.c.email == email, gpgmw_keys.c.id != row_id))
-        LOG.debug(f"Deleting public keys associated with confirmed email: {delq}")
-        conn.execute(delq)
-        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), email)
-        LOG.info('Deleted key for <' + email + '> via import request')
+        key_queue.delete_keys(row_id, email=email)
+        identities.delete(email)
+        GnuPG.delete_key(key_dir, email)
+        LOG.info('Deleted key for <%s> via import request', email)
 
-        if key_id.strip():  # we have this so that user can submit blank key to remove any encryption
-            if GnuPG.confirm_key(key_id, email):
-                GnuPG.add_key(conf.get_item('gpg', 'keyhome'), key_id)  # import the key to gpg
-                modq = gpgmw_keys.update().where(gpgmw_keys.c.id == row_id).values(status=1)
-                LOG.debug(f"Key imported, updating key: {modq}")
-                conn.execute(modq)                      # mark key as accepted
-                LOG.warning('Imported key from <' + email + '>')
-                if conf.config_item_equals('cron', 'send_email', 'yes'):
-                    _send_msg("PGP key registration successful", "registrationSuccess.md", email)
+        if armored_key.strip():  # we have this so that user can submit blank key to remove any encryption
+            if GnuPG.confirm_key(armored_key, email):
+                # import the key to gpg
+                (fingerprint, _) = GnuPG.add_key(key_dir, armored_key)
+
+                key_queue.mark_accepted(row_id)
+                identities.register_or_update(email, fingerprint)
+
+                LOG.info('Imported key from <%s>', email)
+                if conf.flag_enabled('cron', 'send_email'):
+                    notify("PGP key registration successful", "registrationSuccess.md", email)
             else:
-                delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
-                LOG.debug(f"Cannot confirm key, deleting it: {delq}")
-                conn.execute(delq)              # delete key
-                LOG.warning('Import confirmation failed for <' + email + '>')
-                if conf.config_item_equals('cron', 'send_email', 'yes'):
-                    _send_msg("PGP key registration failed", "registrationError.md", email)
+                key_queue.delete_keys(row_id)
+                LOG.warning('Import confirmation failed for <%s>', email)
+
+                if conf.flag_enabled('cron', 'send_email'):
+                    notify("PGP key registration failed", "registrationError.md", email)
         else:
             # delete key so we don't continue processing it
-            delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
-            LOG.debug(f"Deleting key: {delq}")
-            conn.execute(delq)
-            if conf.config_item_equals('cron', 'send_email', 'yes'):
-                _send_msg("PGP key deleted", "keyDeleted.md", email)
+            key_queue.delete_keys(row_id)
+            if conf.flag_enabled('cron', 'send_email'):
+                notify("PGP key deleted", "keyDeleted.md", email)
 
-    # delete keys
-    stat2q = select(gpgmw_keys.c.email, gpgmw_keys.c.id).where(gpgmw_keys.c.status == 2).limit(100)
-    stat2_result_set = conn.execute(stat2q)
-
+    stat2_result_set = key_queue.fetch_keys_to_delete()
     for email, row_id in stat2_result_set:
-        GnuPG.delete_key(conf.get_item('gpg', 'keyhome'), email)
-        delq = delete(gpgmw_keys).where(gpgmw_keys.c.id == row_id)
-        LOG.debug(f"Deleting keys that have already been processed: {delq}")
-        conn.execute(delq)
-        LOG.info('Deleted key for <' + email + '>')
+        GnuPG.delete_key(key_dir, email)
+        key_queue.delete_keys(row_id)
+        LOG.info('Deleted key for <%s>', email)
 else:
     print("Warning: doing nothing since database settings are not configured!")
     LOG.error("Warning: doing nothing since database settings are not configured!")
