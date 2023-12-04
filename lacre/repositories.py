@@ -40,9 +40,7 @@ class IdentityRepository(KeyRing):
     def _exists(self, email: str) -> bool:
         self._ensure_connected()
         selq = select(self._identities.c.email).where(self._identities.c.email == email)
-        emails = [e for e in self._conn.execute(selq)]
-        assert len(emails) == 1
-        return emails
+        return [e for e in self._conn.execute(selq)]
 
     def _insert(self, email, fprint):
         self._ensure_connected()
