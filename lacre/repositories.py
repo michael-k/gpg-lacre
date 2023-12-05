@@ -71,6 +71,12 @@ class IdentityRepository(KeyRing):
 
         self._conn.execute(delq)
 
+    def delete_all(self):
+        LOG.warn('Deleting all identities from the database')
+
+        delq = delete(self._identities)
+        self._conn.execute(delq)
+
     def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
         self._ensure_connected()
