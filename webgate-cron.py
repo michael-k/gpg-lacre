@@ -19,16 +19,9 @@
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sqlalchemy
-import smtplib
-import markdown
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
 import logging
 import lacre
 import lacre.config as conf
-import lacre.dbschema as db
 from lacre.notify import notify
 
 # Read configuration from /etc/gpg-mailgate.conf

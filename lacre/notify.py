@@ -3,6 +3,10 @@
 import logging
 import lacre
 import lacre.config as conf
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import markdown
 
 # Read configuration from /etc/gpg-mailgate.conf
 conf.load_config()
