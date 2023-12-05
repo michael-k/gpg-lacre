@@ -69,6 +69,8 @@ class IdentityRepository(KeyRing):
         delq = delete(self._identities).where(self._identities.c.email == email)
         LOG.debug('Deleting keys assigned to %s', email)
 
+        self._conn.execute(delq)
+
     def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map."""
         self._ensure_connected()
