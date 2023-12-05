@@ -102,7 +102,7 @@ def main():
         )
     cmd_import.add_argument('-d', '--homedir', default=False,
                             help='specify GnuPG directory (default: use configured dir.)')
-    cmd_import.add_argument('-r', '--reload',
+    cmd_import.add_argument('-r', '--reload', action='store_true',
                             help='delete all keys from database before importing')
     cmd_import.set_defaults(operation=sub_import)
 
