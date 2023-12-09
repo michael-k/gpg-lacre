@@ -47,24 +47,22 @@ RX_CONFIRM = re.compile(br'key "([^"]+)" imported')
 class EncryptionException(Exception):
     """Represents a failure to encrypt a payload."""
 
-    def __init__(self, issue: str, recipient: str, cause: str):
-        """Initialise an exception."""
-        self._issue = issue
-        self._recipient = recipient
-        self._cause = cause
-
     def __str__(self):
         """Return human-readable string representation."""
+        recipient, issue, cause, key = self.args
         parts = []
 
-        if self._recipient:
-            parts.append('To: ' + self._recipient)
+        if recipient:
+            parts.append('To: ' + recipient)
 
-        if self._issue:
-            parts.append('Issue: ' + self._issue)
+        if issue:
+            parts.append('Issue: ' + issue)
 
-        if self._cause:
-            parts.append('Cause: ' + self._cause)
+        if key:
+            parts.append('Key: ' + key.decode())
+
+        if cause:
+            parts.append('Cause: ' + cause)
 
         return '; '.join(parts)
 
@@ -243,7 +241,7 @@ class GPGEncryptor:
         if p.returncode != 0:
             LOG.debug('Errors: %s', err)
             details = parse_status(err)
-            raise EncryptionException(details['issue'], details['recipient'], details['cause'])
+            raise EncryptionException(details['issue'], details['recipient'], details['cause'], details['key'])
         return (encdata, p.returncode)
 
     def _popen(self):

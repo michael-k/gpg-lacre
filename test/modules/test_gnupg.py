@@ -65,6 +65,10 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         uid = GnuPG._parse_uid_line(sample_in)
         self.assertEqual(uid, 'alice@disposlab')
 
+    def test_exception_formatting(self):
+        e = GnuPG.EncryptionException('alice@disposlab', 'key expired', None, b'DEADBEEF')
+        self.assertEqual(str(e), 'To: alice@disposlab; Issue: key expired; Key: DEADBEEF')
+
     def test_parse_statusfd_key_expired(self):
         key_expired = b"""
 [GNUPG:] KEYEXPIRED 1668272263
@@ -74,9 +78,9 @@ class GnuPGUtilitiesTest(unittest.TestCase):
 """
 
         result = GnuPG.parse_status(key_expired)
-        self.assertEqual(result['issue'], b'KEYEXPIRED')
+        self.assertEqual(result['issue'], 'key expired')
         self.assertEqual(result['recipient'], b'name@domain')
-        self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['cause'], 'Unknown')
         self.assertEqual(result['key'], b'XXXXXXXXXXXXX')
 
     def test_parse_statusfd_key_absent(self):
@@ -88,7 +92,7 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         result = GnuPG.parse_status(non_specific_errors)
         self.assertEqual(result['issue'], b'n/a')
         self.assertEqual(result['recipient'], b'name@domain')
-        self.assertEqual(result['cause'], 'No specific reason given')
+        self.assertEqual(result['cause'], 'Unknown')
         self.assertEqual(result['key'], b'n/a')
 
 
