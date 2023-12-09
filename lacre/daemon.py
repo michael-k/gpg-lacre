@@ -57,9 +57,9 @@ class MailEncryptionProxy:
                     try:
                         new_message = operation.perform(message)
                         send(new_message, operation.recipients())
-                    except EncryptionException:
+                    except EncryptionException as e:
                         # If the message can't be encrypted, deliver cleartext.
-                        LOG.exception('Unable to encrypt message, delivering in cleartext')
+                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
                         if not isinstance(operation, KeepIntact):
                             self._send_unencrypted(operation, message, envelope, send)
                         else:

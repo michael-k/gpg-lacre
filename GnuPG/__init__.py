@@ -55,7 +55,18 @@ class EncryptionException(Exception):
 
     def __str__(self):
         """Return human-readable string representation."""
-        return f"issue: {self._issue}; to: {self._recipient}; cause: {self._cause}"
+        parts = []
+
+        if self._recipient:
+            parts.append('To: ' + self._recipient)
+
+        if self._issue:
+            parts.append('Issue: ' + self._issue)
+
+        if self._cause:
+            parts.append('Cause: ' + self._cause)
+
+        return '; '.join(parts)
 
 
 def _build_command(key_home, *args, **kwargs):
@@ -337,17 +348,19 @@ def parse_status_lines(lines: list) -> dict:
             continue
 
         if line.startswith(KEY_EXPIRED, STATUS_FD_PREFIX_LEN):
-            result['issue'] = KEY_EXPIRED
+            result['issue'] = 'key expired'
         elif line.startswith(KEY_REVOKED, STATUS_FD_PREFIX_LEN):
-            result['issue'] = KEY_REVOKED
+            result['issue'] = 'key revoked'
         elif line.startswith(NO_RECIPIENTS, STATUS_FD_PREFIX_LEN):
-            result['issue'] = NO_RECIPIENTS
+            result['issue'] = 'no recipients'
         elif line.startswith(KEY_CONSIDERED, STATUS_FD_PREFIX_LEN):
             result['key'] = line.split(b' ')[2]
         elif line.startswith(INVALID_RECIPIENT, STATUS_FD_PREFIX_LEN):
             words = line.split(b' ')
             reason_code = int(words[2])
             result['recipient'] = words[3]
-            result['cause'] = INVALID_RECIPIENT_CAUSES[reason_code]
+
+            if reason_code:
+                result['cause'] = INVALID_RECIPIENT_CAUSES[reason_code]
 
     return result
