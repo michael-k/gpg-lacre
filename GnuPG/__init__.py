@@ -45,17 +45,15 @@ RX_CONFIRM = re.compile(br'key "([^"]+)" imported')
 
 
 class EncryptionException(Exception):
-    """Represents a failure to encrypt a payload."""
+    """Represents a failure to encrypt a payload.
 
-    def __init__(self, issue: str, recipient: str, cause: str):
-        """Initialise an exception."""
-        self._issue = issue
-        self._recipient = recipient
-        self._cause = cause
-
-    def __str__(self):
-        """Return human-readable string representation."""
-        return f"issue: {self._issue}; to: {self._recipient}; cause: {self._cause}"
+    Arguments passed to exception constructor:
+    - issue: human-readable explanation of the issue;
+    - recipient: owner of the key;
+    - cause: any additional information, if present;
+    - key: fingerprint of the key.
+    """
+    pass
 
 
 def _build_command(key_home, *args, **kwargs):
@@ -232,7 +230,7 @@ class GPGEncryptor:
         if p.returncode != 0:
             LOG.debug('Errors: %s', err)
             details = parse_status(err)
-            raise EncryptionException(details['issue'], details['recipient'], details['cause'])
+            raise EncryptionException(details['issue'], details['recipient'], details['cause'], details['key'])
         return (encdata, p.returncode)
 
     def _popen(self):
@@ -337,17 +335,19 @@ def parse_status_lines(lines: list) -> dict:
             continue
 
         if line.startswith(KEY_EXPIRED, STATUS_FD_PREFIX_LEN):
-            result['issue'] = KEY_EXPIRED
+            result['issue'] = 'key expired'
         elif line.startswith(KEY_REVOKED, STATUS_FD_PREFIX_LEN):
-            result['issue'] = KEY_REVOKED
+            result['issue'] = 'key revoked'
         elif line.startswith(NO_RECIPIENTS, STATUS_FD_PREFIX_LEN):
-            result['issue'] = NO_RECIPIENTS
+            result['issue'] = 'no recipients'
         elif line.startswith(KEY_CONSIDERED, STATUS_FD_PREFIX_LEN):
             result['key'] = line.split(b' ')[2]
         elif line.startswith(INVALID_RECIPIENT, STATUS_FD_PREFIX_LEN):
             words = line.split(b' ')
             reason_code = int(words[2])
             result['recipient'] = words[3]
-            result['cause'] = INVALID_RECIPIENT_CAUSES[reason_code]
+
+            if reason_code:
+                result['cause'] = INVALID_RECIPIENT_CAUSES[reason_code]
 
     return result

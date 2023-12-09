@@ -70,6 +70,9 @@ def sub_import(args):
     conn = repo.connect(conf.get_item('database', 'url'))
     identities = repo.IdentityRepository(conn)
 
+    if args.reload:
+        identities.delete_all()
+
     total = 0
     for (fingerprint, email) in public.items():
         LOG.debug('Importing %s - %s', email, fingerprint)
@@ -97,7 +100,10 @@ def main():
     cmd_import = sub_commands.add_parser('import',
         help='Load identities from GnuPG directory to Lacre database'
         )
-    cmd_import.add_argument('-d', '--homedir', help='specify GnuPG directory (default: use configured dir.)')
+    cmd_import.add_argument('-d', '--homedir', default=False,
+                            help='specify GnuPG directory (default: use configured dir.)')
+    cmd_import.add_argument('-r', '--reload', action='store_true',
+                            help='delete all keys from database before importing')
     cmd_import.set_defaults(operation=sub_import)
 
     cmd_queue = sub_commands.add_parser('queue',

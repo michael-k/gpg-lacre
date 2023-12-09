@@ -32,3 +32,16 @@ To preview a particular identity, run:
 ```sh
 python -m lacre.admin identities -e alice@example.com
 ```
+
+## Importing identities from existing GnuPG keyring
+
+If you already have a GnuPG keyring with your users' public keys or for some
+reason Lacre's identity database needs to be re-populated with identities,
+there's a command to do that:
+
+```sh
+python -m lacre.admin import -d /path/to/gnupg/directory
+```
+
+If you want to just re-populate the database, Lacre can remove all identities
+prior to importing keys -- just add `-r` flag.

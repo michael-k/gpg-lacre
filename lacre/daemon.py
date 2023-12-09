@@ -42,10 +42,6 @@ class MailEncryptionProxy:
                 LOG.debug('Parsed into %s: %s', type(message), repr(message))
 
                 if message.defects:
-                    # Sometimes a weird message cannot be encoded back and
-                    # delivered, so before bouncing such messages we at least
-                    # record information about the issues.  Defects are identified
-                    # by email.* package.
                     LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
 
                 if conf.flag_enabled('daemon', 'log_headers'):
@@ -57,13 +53,14 @@ class MailEncryptionProxy:
                     try:
                         new_message = operation.perform(message)
                         send(new_message, operation.recipients())
-                    except EncryptionException:
+                    except EncryptionException as e:
                         # If the message can't be encrypted, deliver cleartext.
-                        LOG.exception('Unable to encrypt message, delivering in cleartext')
+                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
                         if not isinstance(operation, KeepIntact):
                             self._send_unencrypted(operation, message, envelope, send)
                         else:
-                            LOG.error(f'Cannot perform {operation}')
+                            LOG.exception('Cannot perform: %s', operation)
+                            raise
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
