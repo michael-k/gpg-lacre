@@ -45,26 +45,15 @@ RX_CONFIRM = re.compile(br'key "([^"]+)" imported')
 
 
 class EncryptionException(Exception):
-    """Represents a failure to encrypt a payload."""
+    """Represents a failure to encrypt a payload.
 
-    def __str__(self):
-        """Return human-readable string representation."""
-        recipient, issue, cause, key = self.args
-        parts = []
-
-        if recipient:
-            parts.append('To: ' + recipient)
-
-        if issue:
-            parts.append('Issue: ' + issue)
-
-        if key:
-            parts.append('Key: ' + key.decode())
-
-        if cause:
-            parts.append('Cause: ' + cause)
-
-        return '; '.join(parts)
+    Arguments passed to exception constructor:
+    - issue: human-readable explanation of the issue;
+    - recipient: owner of the key;
+    - cause: any additional information, if present;
+    - key: fingerprint of the key.
+    """
+    pass
 
 
 def _build_command(key_home, *args, **kwargs):

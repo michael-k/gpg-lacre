@@ -59,8 +59,8 @@ class MailEncryptionProxy:
                         if not isinstance(operation, KeepIntact):
                             self._send_unencrypted(operation, message, envelope, send)
                         else:
-                            LOG.error('Cannot perform: %s', operation)
-                            raise e
+                            LOG.exception('Cannot perform: %s', operation)
+                            raise
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
