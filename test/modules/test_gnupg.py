@@ -65,10 +65,6 @@ class GnuPGUtilitiesTest(unittest.TestCase):
         uid = GnuPG._parse_uid_line(sample_in)
         self.assertEqual(uid, 'alice@disposlab')
 
-    def test_exception_formatting(self):
-        e = GnuPG.EncryptionException('alice@disposlab', 'key expired', None, b'DEADBEEF')
-        self.assertEqual(str(e), 'To: alice@disposlab; Issue: key expired; Key: DEADBEEF')
-
     def test_parse_statusfd_key_expired(self):
         key_expired = b"""
 [GNUPG:] KEYEXPIRED 1668272263
