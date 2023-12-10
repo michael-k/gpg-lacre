@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, select, delete, and_, func
 from sqlalchemy.exc import OperationalError
 import logging
 
+from lacre.config import flag_enabled
 from lacre._keyringcommon import KeyRing, KeyCache
 import lacre.dbschema as db
 
@@ -89,7 +90,7 @@ class IdentityRepository(KeyRing):
         try:
             return self._load_identities()
         except OperationalError:
-            if conf.flag_enabled('daemon', 'bounce_on_keys_missing'):
+            if flag_enabled('daemon', 'bounce_on_keys_missing'):
                 raise
             else:
                 LOG.exception('Failed to load keys, returning empty collection')
