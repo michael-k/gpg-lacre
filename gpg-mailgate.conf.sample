@@ -68,6 +68,11 @@ max_data_bytes = 33554432
 # This should never be PII, but information like encoding, content types, etc.
 log_headers = no
 
+# Sometimes we might fail to load keys and need to choose between delivering
+# in cleartext or not delivering.  The default is to deliver cleartext, but
+# administrators can make this decision on their own.
+bounce_on_keys_missing = no
+
 [relay]
 # the relay settings to use for Postfix
 # gpg-mailgate will submit email to this relay after it is done processing

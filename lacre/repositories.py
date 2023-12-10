@@ -13,6 +13,7 @@ LOG = logging.getLogger(__name__)
 # Internal state
 _engine = None
 
+
 def connect(url):
     global _engine
 
@@ -78,13 +79,21 @@ class IdentityRepository(KeyRing):
         self._conn.execute(delq)
 
     def freeze_identities(self) -> KeyCache:
-        """Return a static, async-safe copy of the identity map."""
+        """Return a static, async-safe copy of the identity map.
+
+        Depending on the value of [daemon]bounce_on_keys_missing value,
+        if we get a database exception, this method will either return
+        empty collection or let the exception be propagated.
+        """
         self._ensure_connected()
         try:
             return self._load_identities()
         except OperationalError:
-            LOG.exception('Cannot retrieve identities')
-            return None
+            if conf.flag_enabled('daemon', 'bounce_on_keys_missing'):
+                raise
+            else:
+                LOG.exception('Failed to load keys, returning empty collection')
+                return KeyCache({})
 
     def _load_identities(self) -> KeyCache:
         all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
