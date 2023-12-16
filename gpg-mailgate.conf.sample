@@ -109,6 +109,18 @@ url = sqlite:///test.db
 # For other RDBMS backends, see:
 # https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls
 
+# Number of seconds after which an idle connection is recycled.  This is
+# useful with MySQL servers.  For more information, see:
+# https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.pool_recycle
+#max_connection_age = 3600
+
+# Number of connections stored in the pool.
+#pool_size = 5
+
+# If the pool size is not enough for current traffic, some connections can be
+# made and closed after use, to avoid pool growth and connection rejections.
+#max_overflow = 10
+
 [enc_keymap]
 # You can find these by running the following command:
 #	gpg --list-keys --keyid-format long user@example.com

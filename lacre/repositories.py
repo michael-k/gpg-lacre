@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, select, delete, and_, func
 from sqlalchemy.exc import OperationalError
 import logging
 
-from lacre.config import flag_enabled
+from lacre.config import flag_enabled, config_item_set, get_item
 from lacre._keyringcommon import KeyRing, KeyCache
 import lacre.dbschema as db
 
@@ -19,9 +19,26 @@ def connect(url):
     global _engine
 
     if not _engine:
-        _engine = create_engine(url)
+        config = _conn_config()
+        _engine = create_engine(url, **config)
 
     return _engine.connect()
+
+
+def _conn_config():
+    config = dict()
+
+    if config_item_set('database', 'max_connection_age'):
+        config['pool_recycle'] = get_item('database', 'max_connection_age')
+
+    if config_item_set('database', 'pool_size'):
+        config['pool_size'] = get_item('database', 'pool_size')
+
+    if config_item_set('database', 'max_overflow'):
+        config['max_overflow'] = get_item('database', 'max_overflow')
+
+    return config
+
 
 class IdentityRepository(KeyRing):
     def __init__(self, /, connection=None, db_url=None):
