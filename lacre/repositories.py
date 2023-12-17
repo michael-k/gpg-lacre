@@ -33,17 +33,17 @@ def _conn_config():
     mode = PoolingMode.from_config('database', 'pooling_mode', required=True)
     if mode is PoolingMode.OPTIMISTIC:
         # Optimistic distonnect-handling: recycle connections.
-        config['pool_recycle'] = get_item('database', 'max_connection_age', _HOUR_IN_SECONDS)
+        config['pool_recycle'] = int(get_item('database', 'max_connection_age', _HOUR_IN_SECONDS))
     elif mode is PoolingMode.PESSIMISTIC:
         # Pessimistic disconnect-handling: pre_ping.
         config['pool_pre_ping'] = True
 
     # Additional pool settings
     if config_item_set('database', 'pool_size'):
-        config['pool_size'] = get_item('database', 'pool_size')
+        config['pool_size'] = int(get_item('database', 'pool_size'))
 
     if config_item_set('database', 'max_overflow'):
-        config['max_overflow'] = get_item('database', 'max_overflow')
+        config['max_overflow'] = int(get_item('database', 'max_overflow'))
 
     LOG.debug('Database engine configuration: %s', config)
     return config
