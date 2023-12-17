@@ -42,6 +42,7 @@ def _build_config(config):
     cp.add_section('database')
     cp.set('database', 'enabled', 'yes')
     cp.set('database', 'url', 'sqlite:///test/lacre.db')
+    cp.set('database', 'pooling_mode', 'optimistic')
 
     cp.add_section("smime")
     cp.set("smime", "cert_path", config["smime_certpath"])

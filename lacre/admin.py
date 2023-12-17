@@ -30,8 +30,8 @@ def sub_queue(args):
     """Sub-command to inspect queue contents."""
     LOG.debug('Inspecting queue...')
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    queue = repo.KeyConfirmationQueue(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    queue = repo.KeyConfirmationQueue(engine=eng)
 
     cnt = queue.count_keys()
 
@@ -45,8 +45,8 @@ def sub_identities(args):
     """Sub-command to inspect identity database."""
     LOG.debug('Inspecting identities...')
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    identities = repo.IdentityRepository(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    identities = repo.IdentityRepository(engine=eng)
 
     all_identities = identities.freeze_identities()
     if all_identities is None:
@@ -67,8 +67,8 @@ def sub_import(args):
 
     public = GnuPG.public_keys(source_dir)
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    identities = repo.IdentityRepository(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    identities = repo.IdentityRepository(engine=eng)
 
     if args.reload:
         identities.delete_all()

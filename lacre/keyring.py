@@ -6,7 +6,7 @@ module.
 
 import lacre.config as conf
 from lacre._keyringcommon import KeyRing, KeyCache
-from lacre.repositories import IdentityRepository
+from lacre.repositories import IdentityRepository, init_engine
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -15,7 +15,8 @@ LOG = logging.getLogger(__name__)
 def init_keyring() -> KeyRing:
     """Initialise appropriate type of keyring."""
     url = conf.get_item('database', 'url')
-    return IdentityRepository(db_url=url)
+    db_engine = init_engine(url)
+    return IdentityRepository(engine=db_engine)
 
 
 def freeze_and_load_keys() -> KeyCache:

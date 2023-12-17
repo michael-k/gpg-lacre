@@ -101,6 +101,17 @@ starttls = true
 enabled = yes
 url = sqlite:///test.db
 
+# Pooling mode: pessimistic or optimistic (required parameter).
+#
+# - Pessimistic disconnect-handling: pre_ping.  Connection pool will try using
+#   connection before it executes a SQL query to find out if the connection is
+#   still alive.  If not, it'll just establish a new connection.
+#
+# - Optimistic distonnect-handling: just avoid using connections after some
+#   time.
+#
+pooling_mode = optimistic
+
 # For a MySQL database "gpgmw", user "gpgmw" and password "password",
 # use the following URL:
 #
@@ -110,7 +121,8 @@ url = sqlite:///test.db
 # https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls
 
 # Number of seconds after which an idle connection is recycled.  This is
-# useful with MySQL servers.  For more information, see:
+# useful with MySQL servers.  This is only used with pooling_mode=optimistic.
+# For more information, see:
 # https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.pool_recycle
 #max_connection_age = 3600
 

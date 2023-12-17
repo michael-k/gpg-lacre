@@ -31,7 +31,7 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 LOG = logging.getLogger('webgate-cron.py')
 
 import GnuPG
-from lacre.repositories import KeyConfirmationQueue, IdentityRepository, connect
+from lacre.repositories import KeyConfirmationQueue, IdentityRepository, init_engine
 
 
 def _validate_config():
@@ -44,10 +44,10 @@ def _validate_config():
 _validate_config()
 
 if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url'):
-    conn = connect(conf.get_item('database', 'url'))
+    db_engine = init_engine(conf.get_item('database', 'url'))
 
-    identities = IdentityRepository(conn)
-    key_queue = KeyConfirmationQueue(conn)
+    identities = IdentityRepository(engine=db_engine)
+    key_queue = KeyConfirmationQueue(engine=db_engine)
 
     key_dir = conf.get_item('gpg', 'keyhome')
     LOG.debug('Using GnuPG with home directory in %s', key_dir)
