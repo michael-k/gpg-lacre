@@ -88,17 +88,18 @@ def _sort_gpg_recipients(gpg_to) -> Tuple[recpt.RecipientList, recpt.RecipientLi
 
     for rcpt in gpg_to:
         # Checking pre defined styles in settings first
-        if conf.config_item_equals('pgp_style', rcpt.email(), 'mime'):
+        style = conf.PGPStyle.from_config('pgp_style', rcpt.email())
+        if style is conf.PGPStyle.MIME:
             recipients_mime.append(rcpt.email())
             keys_mime.extend(rcpt.key().split(','))
-        elif conf.config_item_equals('pgp_style', rcpt.email(), 'inline'):
+        elif style is conf.PGPStyle.INLINE:
             recipients_inline.append(rcpt.email())
             keys_inline.extend(rcpt.key().split(','))
         else:
             # Log message only if an unknown style is defined
             if conf.config_item_set('pgp_style', rcpt.email()):
-                LOG.debug("Style %s for recipient %s is not known. Use default as fallback."
-                          % (conf.get_item("pgp_style", rcpt.email()), rcpt.email()))
+                LOG.debug("Style %s for recipient %s is not known. Use default as fallback.",
+                          conf.get_item("pgp_style", rcpt.email()), rcpt.email())
 
             # If no style is in settings defined for recipient, use default from settings
             if default_to_pgp_mime:

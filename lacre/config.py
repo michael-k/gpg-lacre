@@ -152,9 +152,10 @@ class FromStrMixin:
 
     @classmethod
     def from_str(cls, name, *, required=False):
-        # If name conversion is available, use it.
-        if hasattr(cls, 'conv'):
-            name = cls.conv(name)
+        if name is None:
+            return None
+
+        name = name.upper()
 
         if name in cls.__members__:
             return cls.__members__[name]
@@ -167,7 +168,6 @@ class FromStrMixin:
     @classmethod
     def from_config(cls, section, key, *, required=False):
         param = get_item(section, key)
-        # print(f'from config {param}, {section}:{key}*{required}')
         return cls.from_str(param, required=required)
 
 
@@ -185,7 +185,3 @@ class PoolingMode(FromStrMixin, Enum):
     """
     OPTIMISTIC = auto()
     PESSIMISTIC = auto()
-
-    @classmethod
-    def conv(cls, name):
-        return name.upper()
