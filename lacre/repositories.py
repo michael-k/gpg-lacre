@@ -174,6 +174,14 @@ class KeyConfirmationQueue:
         with self._engine.connect() as conn:
             conn.execute(delq)
 
+    def delete_key_by_email(self, email):
+        """Remove keys linked to the given email from the database."""
+        delq = delete(self._keys).where(self._keys.c.email == email)
+
+        LOG.debug('Deleting email for: %s', email)
+        with self._engine.connect() as conn:
+            conn.execute(delq)
+
     def mark_accepted(self, row_id):
         modq = self._keys.update().where(self._keys.c.id == row_id).values(status=db.ST_IMPORTED)
         LOG.debug("Key imported, updating key: %s", modq)

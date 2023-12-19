@@ -80,6 +80,8 @@ if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database',
                     notify("PGP key registration failed", "registrationError.md", email)
         else:
             # delete key so we don't continue processing it
+            LOG.debug('Empty key received, just deleting')
+
             key_queue.delete_keys(row_id)
             if conf.flag_enabled('cron', 'send_email'):
                 notify("PGP key deleted", "keyDeleted.md", email)
