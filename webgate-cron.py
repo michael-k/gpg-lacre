@@ -19,6 +19,7 @@
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
+import sys
 import logging
 import lacre
 import lacre.config as conf
@@ -43,7 +44,13 @@ def _validate_config():
 
 _validate_config()
 
-if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url'):
+if not (conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url')):
+    print("Warning: doing nothing since database settings are not configured!")
+    LOG.error("Warning: doing nothing since database settings are not configured!")
+    sys.exit(lacre.EX_CONFIG)
+
+
+try:
     db_engine = init_engine(conf.get_item('database', 'url'))
 
     identities = IdentityRepository(engine=db_engine)
@@ -86,11 +93,11 @@ if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database',
             if conf.flag_enabled('cron', 'send_email'):
                 notify("PGP key deleted", "keyDeleted.md", email)
 
+    LOG.info('Cleaning up after a round of key confirmation')
     stat2_result_set = key_queue.fetch_keys_to_delete()
     for email, row_id in stat2_result_set:
         GnuPG.delete_key(key_dir, email)
         key_queue.delete_keys(row_id)
         LOG.info('Deleted key for <%s>', email)
-else:
-    print("Warning: doing nothing since database settings are not configured!")
-    LOG.error("Warning: doing nothing since database settings are not configured!")
+except:
+    LOG.exception('Unexpected issue during key confirmation')

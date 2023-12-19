@@ -137,15 +137,18 @@ def confirm_key(content, email: str):
     expected_email = email.lower()
 
     tmpkeyhome = tempfile.mkdtemp()
+    LOG.debug('Importing into temporary directory: %s', tmpkeyhome)
 
     result = _import_key(tmpkeyhome, content)
     confirmed = False
 
     for line in result.splitlines():
+        LOG.debug('Line from GnuPG: %s', line)
         found = RX_CONFIRM.search(line)
         if found:
             (_, extracted_email) = parseaddr(found.group(1).decode())
             confirmed = (extracted_email == expected_email)
+            LOG.debug('Confirmed email %s: %s', extracted_email, confirmed)
 
     # cleanup
     shutil.rmtree(tmpkeyhome)
