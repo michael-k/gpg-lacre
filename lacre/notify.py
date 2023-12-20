@@ -8,8 +8,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import markdown
 
-# Read configuration from /etc/gpg-mailgate.conf
-conf.load_config()
 
 LOG = logging.getLogger(__name__)
 
