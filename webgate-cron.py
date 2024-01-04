@@ -96,8 +96,12 @@ try:
     LOG.info('Cleaning up after a round of key confirmation')
     stat2_result_set = key_queue.fetch_keys_to_delete()
     for email, row_id in stat2_result_set:
+        LOG.debug('Removing key from keyring: %s', email)
         GnuPG.delete_key(key_dir, email)
+
+        LOG.debug('Removing key from identity store: %s', row_id)
         key_queue.delete_keys(row_id)
+
         LOG.info('Deleted key for <%s>', email)
 except:
     LOG.exception('Unexpected issue during key confirmation')

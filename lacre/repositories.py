@@ -166,15 +166,15 @@ class KeyConfirmationQueue:
     def delete_keys(self, row_id, /, email=None):
         """Remove key from the database."""
         if email is not None:
-            LOG.debug('Deleting key: %s, %s', row_id, email)
-            delq = delete(self._keys).where(and_(self._keys.c.email == email, self._keys.c.id != row_id))
+            LOG.debug('Deleting key: id=%s, email=%s', row_id, email)
+            delq = delete(self._keys).where(and_(self._keys.c.email == email, self._keys.c.id == row_id))
         else:
-            LOG.debug('Deleting key: %s', row_id)
-            delq = delete(self._keys).where(self._keys.c.id != row_id)
+            LOG.debug('Deleting key: id=%s', row_id)
+            delq = delete(self._keys).where(self._keys.c.id == row_id)
 
         with self._engine.connect() as conn:
             LOG.debug('Deleting public keys associated with confirmed email: %s', delq)
-            conn.execute(delq)
+            return conn.execute(delq)
 
     def delete_key_by_email(self, email):
         """Remove keys linked to the given email from the database."""
