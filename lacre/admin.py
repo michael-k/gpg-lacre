@@ -18,7 +18,7 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 import lacre.repositories as repo
 import lacre.dbschema as db
 
-LOG = logging.getLogger('lacre.admin')
+LOG = logging.getLogger(__name__)
 
 
 def _no_database():
@@ -30,23 +30,25 @@ def sub_queue(args):
     """Sub-command to inspect queue contents."""
     LOG.debug('Inspecting queue...')
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    queue = repo.KeyConfirmationQueue(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    queue = repo.KeyConfirmationQueue(engine=eng)
 
-    cnt = queue.count_keys()
+    if args.delete:
+        queue.delete_key_by_email(args.delete)
+    else:
+        cnt = queue.count_keys()
+        if cnt is None:
+            _no_database()
 
-    if cnt is None:
-        _no_database()
-
-    print(f'Keys in the queue: {cnt}')
+        print(f'Keys in the queue: {cnt}')
 
 
 def sub_identities(args):
     """Sub-command to inspect identity database."""
     LOG.debug('Inspecting identities...')
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    identities = repo.IdentityRepository(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    identities = repo.IdentityRepository(engine=eng)
 
     all_identities = identities.freeze_identities()
     if all_identities is None:
@@ -67,8 +69,8 @@ def sub_import(args):
 
     public = GnuPG.public_keys(source_dir)
 
-    conn = repo.connect(conf.get_item('database', 'url'))
-    identities = repo.IdentityRepository(conn)
+    eng = repo.init_engine(conf.get_item('database', 'url'))
+    identities = repo.IdentityRepository(engine=eng)
 
     if args.reload:
         identities.delete_all()
@@ -110,6 +112,8 @@ def main():
         help='Inspect key queue',
         aliases=['q']
         )
+    cmd_queue.add_argument('-D', '--delete',
+                           help='delete specified email from the queue')
     cmd_queue.set_defaults(operation=sub_queue)
 
     cmd_identities = sub_commands.add_parser('identities',

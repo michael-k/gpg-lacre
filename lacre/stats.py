@@ -13,6 +13,7 @@ class ExecutionTimeLogger:
 
     def __enter__(self):
         self._start = time.process_time()
+        self._log.info('Start: %s', self._message)
 
     def __exit__(self, exc_type=None, exc_value=None, traceback=None):
         end = time.process_time()

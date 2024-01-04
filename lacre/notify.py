@@ -8,8 +8,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import markdown
 
-# Read configuration from /etc/gpg-mailgate.conf
-conf.load_config()
 
 LOG = logging.getLogger(__name__)
 
@@ -50,6 +48,7 @@ def notify(mailsubject, messagefile, recipients = None):
         (host, port) = conf.relay_params()
         smtp = smtplib.SMTP(host, port)
         _authenticate_maybe(smtp)
+        LOG.info('Delivering notification: %s', recipients)
         smtp.sendmail(conf.get_item('cron', 'notification_email'), recipients, msg.as_string())
     else:
-        LOG.info("Could not send mail due to wrong configuration")
+        LOG.warning("Could not send mail due to wrong configuration")

@@ -64,7 +64,7 @@ clean-db:
 # Run unit tests
 #
 unittest:
-	$(PYTHON) -m unittest discover -s test/modules
+	GPG_MAILGATE_CONFIG=test/gpg-mailgate.conf $(PYTHON) -m unittest discover -s test/modules
 
 pre-clean:
 	rm -fv test/gpg-mailgate.conf

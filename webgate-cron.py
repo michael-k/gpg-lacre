@@ -19,6 +19,7 @@
 # along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
+import sys
 import logging
 import lacre
 import lacre.config as conf
@@ -31,7 +32,7 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 LOG = logging.getLogger('webgate-cron.py')
 
 import GnuPG
-from lacre.repositories import KeyConfirmationQueue, IdentityRepository, connect
+from lacre.repositories import KeyConfirmationQueue, IdentityRepository, init_engine
 
 
 def _validate_config():
@@ -43,11 +44,17 @@ def _validate_config():
 
 _validate_config()
 
-if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url'):
-    conn = connect(conf.get_item('database', 'url'))
+if not (conf.flag_enabled('database', 'enabled') and conf.config_item_set('database', 'url')):
+    print("Warning: doing nothing since database settings are not configured!")
+    LOG.error("Warning: doing nothing since database settings are not configured!")
+    sys.exit(lacre.EX_CONFIG)
 
-    identities = IdentityRepository(conn)
-    key_queue = KeyConfirmationQueue(conn)
+
+try:
+    db_engine = init_engine(conf.get_item('database', 'url'))
+
+    identities = IdentityRepository(engine=db_engine)
+    key_queue = KeyConfirmationQueue(engine=db_engine)
 
     key_dir = conf.get_item('gpg', 'keyhome')
     LOG.debug('Using GnuPG with home directory in %s', key_dir)
@@ -80,15 +87,21 @@ if conf.flag_enabled('database', 'enabled') and conf.config_item_set('database',
                     notify("PGP key registration failed", "registrationError.md", email)
         else:
             # delete key so we don't continue processing it
+            LOG.debug('Empty key received, just deleting')
+
             key_queue.delete_keys(row_id)
             if conf.flag_enabled('cron', 'send_email'):
                 notify("PGP key deleted", "keyDeleted.md", email)
 
+    LOG.info('Cleaning up after a round of key confirmation')
     stat2_result_set = key_queue.fetch_keys_to_delete()
     for email, row_id in stat2_result_set:
+        LOG.debug('Removing key from keyring: %s', email)
         GnuPG.delete_key(key_dir, email)
+
+        LOG.debug('Removing key from identity store: %s', row_id)
         key_queue.delete_keys(row_id)
+
         LOG.info('Deleted key for <%s>', email)
-else:
-    print("Warning: doing nothing since database settings are not configured!")
-    LOG.error("Warning: doing nothing since database settings are not configured!")
+except:
+    LOG.exception('Unexpected issue during key confirmation')

@@ -4,6 +4,7 @@ Routines defined here are responsible for processing and validating
 configuration.
 """
 
+from enum import Enum, auto
 from configparser import RawConfigParser
 
 import os
@@ -23,10 +24,12 @@ MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("gpg", "keyhome")]
 
 SCRIPT_REQUIRED = [('database', 'enabled'),
-                   ('database', 'url')]
+                   ('database', 'url'),
+                   ('database', 'pooling_mode')]
 
 CRON_REQUIRED = [('database', 'enabled'),
                  ('database', 'url'),
+                 ('database', 'pooling_mode'),
                  ('cron', 'mail_templates')]
 
 # Global dict to keep configuration parameters.  It's hidden behind several
@@ -142,3 +145,43 @@ def daemon_params():
 def strict_mode():
     """Check if Lacre is configured to support only a fixed list of keys."""
     return ("default" in cfg and cfg["default"]["enc_keymap_only"] == "yes")
+
+
+class FromStrMixin:
+    """Additional operations for configuration enums."""
+
+    @classmethod
+    def from_str(cls, name, *, required=False):
+        if name is None:
+            return None
+
+        name = name.upper()
+
+        if name in cls.__members__:
+            return cls.__members__[name]
+
+        if required:
+            raise NameError('Unsupported or missing value')
+        else:
+            return None
+
+    @classmethod
+    def from_config(cls, section, key, *, required=False):
+        param = get_item(section, key)
+        return cls.from_str(param, required=required)
+
+
+class PGPStyle(FromStrMixin, Enum):
+    """PGP message structure: PGP/Inline or PGP/MIME."""
+    MIME = auto()
+    INLINE = auto()
+
+
+class PoolingMode(FromStrMixin, Enum):
+    """Database connection pool behaviour.
+
+    - Optimistic - recycles connections.
+    - Pessimistic - checks connection before usage.
+    """
+    OPTIMISTIC = auto()
+    PESSIMISTIC = auto()
