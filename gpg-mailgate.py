@@ -21,13 +21,12 @@
 import email
 from email.policy import SMTPUTF8
 import sys
-import time
 import logging
 
 import lacre
 import lacre.config as conf
+from lacre.stats import time_logger
 
-start = time.process_time()
 conf.load_config()
 lacre.init_logging(conf.get_item('logging', 'config'))
 
@@ -36,36 +35,39 @@ import lacre.core as core
 
 LOG = logging.getLogger('gpg-mailgate.py')
 
-missing_params = conf.validate_config(additional=conf.SCRIPT_REQUIRED)
-config_file = conf.config_source()
+def main():
+    with time_logger('Message delivery', LOG):
+        missing_params = conf.validate_config(additional=conf.SCRIPT_REQUIRED)
+        config_file = conf.config_source()
 
-if missing_params:
-    LOG.error(f"Aborting delivery! Following mandatory config parameters are missing in {config_file!r}: {missing_params}")
-    sys.exit(lacre.EX_CONFIG)
+        if missing_params:
+            LOG.error(f"Aborting delivery! Following mandatory config parameters are missing in {config_file!r}: {missing_params}")
+            sys.exit(lacre.EX_CONFIG)
 
-delivered = False
-try:
-    # Read e-mail from stdin, parse it
-    raw = sys.stdin.read()
-    raw_message = email.message_from_string(raw, policy=SMTPUTF8)
-    from_addr = raw_message['From']
-    # Read recipients from the command-line
-    to_addrs = sys.argv[1:]
+        delivered = False
+        try:
+            # Read e-mail from stdin, parse it
+            raw = sys.stdin.read()
+            raw_message = email.message_from_string(raw, policy=SMTPUTF8)
+            from_addr = raw_message['From']
+            # Read recipients from the command-line
+            to_addrs = sys.argv[1:]
 
-    # Let's start
-    core.deliver_message(raw_message, from_addr, to_addrs)
-    process_t = (time.process_time() - start) * 1000
+            # Let's start
+            core.deliver_message(raw_message, from_addr, to_addrs)
+            delivered = True
+        except:
+            LOG.exception('Could not handle message')
 
-    LOG.info("Message delivered in {process:.2f} ms".format(process=process_t))
-    delivered = True
-except:
-    LOG.exception('Could not handle message')
+        if not delivered:
+            # It seems we weren't able to deliver the message.  In case it was
+            # some silly message-encoding issue that shouldn't bounce the
+            # message, we just try recoding the message body and delivering it.
+            try:
+                core.failover_delivery(raw_message, to_addrs, from_addr)
+            except:
+                LOG.exception('Failover delivery failed too')
 
-if not delivered:
-    # It seems we weren't able to deliver the message.  In case it was some
-    # silly message-encoding issue that shouldn't bounce the message, we just
-    # try recoding the message body and delivering it.
-    try:
-        core.failover_delivery(raw_message, to_addrs, from_addr)
-    except:
-        LOG.exception('Failover delivery failed too')
+
+if __name__ == '__main__':
+    main()
