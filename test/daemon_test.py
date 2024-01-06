@@ -30,7 +30,7 @@ def _spawn(cmd):
         "PATH": os.getenv("PATH"),
         "PYTHONPATH": os.getcwd(),
         "LANG": 'en_US.UTF-8',
-        "GPG_MAILGATE_CONFIG": "test/gpg-mailgate-daemon-test.conf"
+        "LACRE_CONFIG": "test/lacre-daemon.conf"
         }
     logging.debug(f"Spawning command: {cmd} with environment: {env_dict!r}")
     return subprocess.Popen(cmd,
