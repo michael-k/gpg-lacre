@@ -29,10 +29,10 @@ pip-log.txt
 .tox
 nosetests.xml
 
-# GPG-Mailgate test files
+# Lacre test files
 test/logs
 test/tmp
-test/gpg-mailgate.conf
+test/lacre.conf
 test/keyhome/random_seed
 
 # Emacs files
