@@ -64,7 +64,7 @@ clean-db:
 # Run unit tests
 #
 unittest:
-	LACRE_CONFIG=test/gpg-mailgate.conf $(PYTHON) -m unittest discover -s test/modules
+	LACRE_CONFIG=test/lacre.conf $(PYTHON) -m unittest discover -s test/modules
 
 pre-clean:
 	rm -fv test/lacre.conf
