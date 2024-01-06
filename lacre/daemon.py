@@ -13,7 +13,7 @@ import email
 from email.policy import SMTPUTF8
 
 # Load configuration and init logging, in this order.  Only then can we load
-# the last Lacre module, i.e. lacre.mailgate.
+# the last Lacre module, i.e. lacre.core.
 conf.load_config()
 lacre.init_logging(conf.get_item("logging", "config"))
 LOG = logging.getLogger('lacre.daemon')

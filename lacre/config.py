@@ -11,9 +11,9 @@ import os
 
 
 # Environment variable name we read to retrieve configuration path.  This is to
-# enable non-root users to set up and run GPG Mailgate and to make the software
+# enable non-root users to set up and run Lacre and to make the software
 # testable.
-CONFIG_PATH_ENV = "GPG_MAILGATE_CONFIG"
+CONFIG_PATH_ENV = "LACRE_CONFIG"
 
 # List of mandatory configuration parameters.  Each item on this list should be
 # a pair: a section name and a parameter name.
@@ -44,7 +44,7 @@ def load_config() -> dict:
     If environment variable identified by CONFIG_PATH_ENV
     variable is set, its value is taken as a configuration file
     path.  Otherwise, the default is taken
-    ('/etc/gpg-mailgate.conf').
+    ('/etc/lacre.conf').
     """
     config_file = config_source()
 
@@ -61,9 +61,9 @@ def load_config() -> dict:
 def config_source() -> str:
     """Return path of configuration file.
 
-    Taken from GPG_MAILGATE_CONFIG environment variable, and if it's not
-    set, defaults to /etc/gpg-mailgate.conf."""
-    return os.getenv(CONFIG_PATH_ENV, '/etc/gpg-mailgate.conf')
+    Taken from LACRE_CONFIG environment variable, and if it's not
+    set, defaults to /etc/lacre.conf."""
+    return os.getenv(CONFIG_PATH_ENV, '/etc/lacre.conf')
 
 
 def _read_config(fileName) -> RawConfigParser:

@@ -1,11 +1,11 @@
 [default]
-# Whether gpg-mailgate should add a header after it has processed an email
+# Whether lacre should add a header after it has processed an email
 # This may be useful for debugging purposes
 add_header = yes
 
 # Whether we should only encrypt emails if they are explicitly defined in
 # the key mappings below ([enc_keymap] section)
-# This means gpg-mailgate won't automatically detect PGP recipients for encrypting
+# This means lacre won't automatically detect PGP recipients for encrypting
 enc_keymap_only = no
 
 # Convert encrypted text/plain email to MIME-attached encrypt style.
@@ -20,36 +20,36 @@ mime_conversion = yes
 mail_case_insensitive = no
 
 [gpg]
-# the directory where gpg-mailgate public keys are stored
+# the directory where lacre public keys are stored
 # (see INSTALL for details)
 #
 # Note that this directory should be accessible only for the Lacre user,
 # i.e. have mode 700.
-keyhome = /var/gpgmailgate/.gnupg
+keyhome = /var/lacre/.gnupg
 
 [smime]
 # the directory for the S/MIME certificate files
-cert_path = /var/gpgmailgate/smime
+cert_path = /var/lacre/smime
 
 [mailregister]
 # settings for the register-handler
 register_email = register@yourdomain.tld
-mail_templates = /var/gpgmailgate/register_templates
+mail_templates = /var/lacre/register_templates
 
 # URL to webpanel.  Upon receiving an email with a key, register-handler
 # uploads it to the web panel.
 webpanel_url = http://yourdomain.tld
 
 [cron]
-# settings for the gpgmw cron job
+# settings for the cron job
 send_email = yes
-notification_email = gpg-mailgate@yourdomain.tld
-mail_templates = /var/gpgmailgate/cron_templates
+notification_email = lacre@yourdomain.tld
+mail_templates = /var/lacre/cron_templates
 
 [logging]
 # path to the logging configuration; see documentation for details:
 # https://docs.python.org/3/library/logging.config.html#logging-config-fileformat
-config = /etc/gpg-lacre-logging.conf
+config = /etc/lacre-logging.conf
 
 [daemon]
 # Advanced Content Filter section.
@@ -75,12 +75,12 @@ bounce_on_keys_missing = no
 
 [relay]
 # the relay settings to use for Postfix
-# gpg-mailgate will submit email to this relay after it is done processing
+# lacre will submit email to this relay after it is done processing
 # unless you alter the default Postfix configuration, you won't have to modify this
 host = 127.0.0.1
 port = 10028
 # This is the default port of postfix. It is used to send some
-# mails through the GPG-Mailgate so they are encrypted
+# mails through the Lacre so they are encrypted
 enc_port = 25
 
 # Set this option to yes to use TLS for SMTP Servers which require TLS.
@@ -89,7 +89,7 @@ starttls = no
 [smtp]
 # Options when smtp auth is required to send out emails 
 enabled = false
-username = gpg-mailgate
+username = lacre
 password = changeme
 host = yourdomain.tld 
 port = 587
@@ -97,7 +97,7 @@ starttls = true
 
 [database]
 # edit the settings below if you want to read keys from a
-# gpg-mailgate-web database other than SQLite
+# lacre-webgate database other than SQLite
 enabled = yes
 url = sqlite:///test.db
 
@@ -112,10 +112,10 @@ url = sqlite:///test.db
 #
 pooling_mode = optimistic
 
-# For a MySQL database "gpgmw", user "gpgmw" and password "password",
+# For a MySQL database "lacre", user "lacre" and password "password",
 # use the following URL:
 #
-#url = mysql://gpgmw:password@localhost/gpgmw
+#url = mysql://lacre:password@localhost/lacre
 #
 # For other RDBMS backends, see:
 # https://docs.sqlalchemy.org/en/14/core/engines.html#database-urls

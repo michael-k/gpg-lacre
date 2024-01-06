@@ -1,20 +1,20 @@
 #
-# gpg-mailgate
+# lacre
 #
-# This file is part of the gpg-mailgate source code.
+# This file is part of the lacre source code.
 #
-# gpg-mailgate is free software: you can redistribute it and/or modify
+# lacre is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# gpg-mailgate source code is distributed in the hope that it will be useful,
+# lacre source code is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
+# along with lacre source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
 """S/MIME handling module."""
@@ -75,7 +75,7 @@ def encrypt(raw_message, recipients, from_addr):
             out.write('Subject: ' + raw_message['Subject'] + text.EOL_S)
 
         if conf.config_item_equals('default', 'add_header', 'yes'):
-            out.write('X-GPG-Mailgate: Encrypted by GPG Mailgate' + text.EOL_S)
+            out.write('X-Lacre: Encrypted by Lacre' + text.EOL_S)
 
         s.write(out, p7)
 

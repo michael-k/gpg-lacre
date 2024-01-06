@@ -1,20 +1,20 @@
 #
-# gpg-mailgate
+# lacre
 #
-# This file is part of the gpg-mailgate source code.
+# This file is part of the lacre source code.
 #
-# gpg-mailgate is free software: you can redistribute it and/or modify
+# lacre is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# gpg-mailgate source code is distributed in the hope that it will be useful,
+# lacre source code is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
+# along with lacre source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
 import os
@@ -27,7 +27,7 @@ import unittest
 
 
 RELAY_SCRIPT = "test/utils/relay.py"
-CONFIG_FILE = "test/gpg-mailgate.conf"
+CONFIG_FILE = "test/lacre.conf"
 
 
 def _build_config(config):
@@ -129,7 +129,7 @@ class SimpleMailFilterE2ETest(unittest.TestCase):
         following properties: 'descr', 'to', 'in' and 'out'.
         """
         gpglacre_cmd = self._python_command(
-            'gpg-mailgate.py',
+            'lacre.py',
             self._e2e_config.get(case_name, 'to'))
 
         relay_cmd = self._python_command(
@@ -147,7 +147,7 @@ class SimpleMailFilterE2ETest(unittest.TestCase):
         gpglacre_proc = subprocess.run(gpglacre_cmd,
             input=_load_file(self._e2e_config.get(case_name, "in")),
             capture_output=True,
-            env={"GPG_MAILGATE_CONFIG": self._e2e_config_path,
+            env={"LACRE_CONFIG": self._e2e_config_path,
                 "PATH": os.getenv("PATH")})
 
         # Let the relay process the data.
