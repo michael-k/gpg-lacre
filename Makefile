@@ -43,7 +43,7 @@ e2etest: test/tmp test/logs pre-clean restore-keyhome
 # it slurps the right config.
 #
 crontest: clean-db $(TEST_DB)
-	LACRE_CONFIG=test/lacre-cron.conf PYTHONPATH=`pwd`	\
+	LACRE_CONFIG=test/lacre-daemon.conf PYTHONPATH=`pwd`	\
 	$(PYTHON) webgate-cron.py
 
 $(TEST_DB):
