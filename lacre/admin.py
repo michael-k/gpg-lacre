@@ -18,7 +18,10 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 import lacre.repositories as repo
 import lacre.dbschema as db
 
-LOG = logging.getLogger(__name__)
+if __name__ == '__main__':
+    LOG = logging.getLogger('lacre.admin')
+else:
+    LOG = logging.getLogger(__name__)
 
 
 def _no_database():
@@ -86,7 +89,10 @@ def sub_import(args):
 
 
 def main():
-    conf.validate_config(additional=conf.SCRIPT_REQUIRED)
+    missing = conf.validate_config()
+    if missing:
+        LOG.error('Missing configuration parameters: %s', missing)
+        sys.exit(lacre.EX_CONFIG)
 
     general_conf = conf.config_source()
     log_conf = conf.get_item('logging', 'config')

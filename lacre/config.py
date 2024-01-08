@@ -21,16 +21,12 @@ MANDATORY_CONFIG_ITEMS = [("relay", "host"),
                           ("relay", "port"),
                           ("daemon", "host"),
                           ("daemon", "port"),
-                          ("gpg", "keyhome")]
+                          ("gpg", "keyhome"),
+                          ('database', 'enabled'),
+                          ('database', 'url'),
+                          ('database', 'pooling_mode')]
 
-SCRIPT_REQUIRED = [('database', 'enabled'),
-                   ('database', 'url'),
-                   ('database', 'pooling_mode')]
-
-CRON_REQUIRED = [('database', 'enabled'),
-                 ('database', 'url'),
-                 ('database', 'pooling_mode'),
-                 ('cron', 'mail_templates')]
+CRON_REQUIRED = [('cron', 'mail_templates')]
 
 # Global dict to keep configuration parameters.  It's hidden behind several
 # utility functions to make it easy to replace it with ConfigParser object in

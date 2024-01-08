@@ -37,7 +37,7 @@ LOG = logging.getLogger('lacre.py')
 
 def main():
     with time_logger('Message delivery', LOG):
-        missing_params = conf.validate_config(additional=conf.SCRIPT_REQUIRED)
+        missing_params = conf.validate_config()
         config_file = conf.config_source()
 
         if missing_params:
