@@ -26,7 +26,7 @@ else:
 
 def _no_database():
     print('Database unavailable or not configured properly')
-    exit(lacre.EX_CONFIG)
+    sys.exit(lacre.EX_CONFIG)
 
 
 def sub_queue(args):

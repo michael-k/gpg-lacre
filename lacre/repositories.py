@@ -17,17 +17,17 @@ _HOUR_IN_SECONDS = 3600
 _engine = None
 
 
-def init_engine(url):
+def init_engine(url, db_debug=False):
     global _engine
 
     if not _engine:
-        config = _conn_config()
+        config = _conn_config(db_debug)
         _engine = create_engine(url, **config)
 
     return _engine
 
 
-def _conn_config():
+def _conn_config(db_debug):
     config = dict()
 
     mode = PoolingMode.from_config('database', 'pooling_mode', required=True)
@@ -44,6 +44,10 @@ def _conn_config():
 
     if config_item_set('database', 'max_overflow'):
         config['max_overflow'] = int(get_item('database', 'max_overflow'))
+
+    if db_debug:
+        config['echo'] = 'debug'
+        config['echo_pool'] = 'debug'
 
     LOG.debug('Database engine configuration: %s', config)
     return config
