@@ -75,7 +75,7 @@ class IdentityRepository(KeyRing):
     def _insert(self, email, fprint):
         insq = self._identities.insert().values(email=email, fingerprint=fprint)
 
-        LOG.debug('Registering identity %s: %s', email, insq)
+        LOG.debug('Registering identity: %s -- %s', insq, insq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(insq)
 
@@ -84,13 +84,13 @@ class IdentityRepository(KeyRing):
             .values(fingerprint=fprint) \
             .where(self._identities.c.email == email)
 
-        LOG.debug('Updating identity %s: %s', email, upq)
+        LOG.debug('Updating identity: %s -- %s', upq, upq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(upq)
 
     def delete(self, email):
         delq = delete(self._identities).where(self._identities.c.email == email)
-        LOG.debug('Deleting keys assigned to %s', email)
+        LOG.debug('Deleting assigned keys: %s -- %s', delq, delq.compile().params)
 
         with self._engine.connect() as conn:
             conn.execute(delq)
@@ -122,7 +122,7 @@ class IdentityRepository(KeyRing):
         all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
         with self._engine.connect() as conn:
             result = conn.execute(all_identities)
-            LOG.debug('Retrieving all keys')
+            LOG.debug('Retrieving all keys: %s', all_identities)
             return KeyCache({key_id: email for key_id, email in result})
 
 
@@ -144,14 +144,14 @@ class KeyConfirmationQueue:
             .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == "")) \
             .limit(max_keys)
 
-        LOG.debug('Retrieving keys to be processed: %s', selq)
+        LOG.debug('Retrieving keys to be processed: %s -- %s', selq, selq.compile().params)
         with self._engine.connect() as conn:
             return conn.execute(selq)
 
     def count_keys(self):
         selq = select(func.count(self._keys.c.id))
 
-        LOG.debug('Counting all keys: %s', selq)
+        LOG.debug('Counting all keys: %s -- %s', selq, selq.compile().params)
         try:
             with self._engine.connect() as conn:
                 c = [cnt for cnt in conn.execute(selq)]
