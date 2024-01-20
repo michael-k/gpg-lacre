@@ -12,15 +12,22 @@ This definition includes:
 import sqlalchemy
 
 # Values for lacre_keys.status column:
+# - ST_DEFAULT: initial state;
+# - ST_IMPORTED: key has been successfully processed by cron job;
+# - ST_TO_BE_DELETED: key can be deleted.
 ST_DEFAULT, ST_IMPORTED, ST_TO_BE_DELETED = range(3)
+
+# lacre_keys.confirmed is set to an empty string when a key is confirmed by the user.
+CO_CONFIRMED = ''
 
 _meta = sqlalchemy.MetaData()
 
 LACRE_KEYS = sqlalchemy.Table('lacre_keys', _meta,
                               sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
-                              sqlalchemy.Column('email', sqlalchemy.String(256)),
+                              sqlalchemy.Column('email', sqlalchemy.String(256), index=True),
                               # ASCII-armored key
                               sqlalchemy.Column('publickey', sqlalchemy.Text),
+                              # Empty string means this key has been confirmed.
                               sqlalchemy.Column('confirm', sqlalchemy.String(32)),
                               # Status: see ST_* constants at the top of the file.
                               sqlalchemy.Column('status', sqlalchemy.Integer),

@@ -139,33 +139,37 @@ class KeyConfirmationQueue:
     def fetch_keys(self, /, max_keys=None):
         """Runs a query to retrieve at most `keys_read_max` keys and returns db result."""
         max_keys = max_keys or self.keys_read_max
+        LOG.debug('Row limit: %d', max_keys)
 
         selq = select(self._keys.c.publickey, self._keys.c.id, self._keys.c.email) \
-            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == "")) \
+            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == db.CO_CONFIRMED)) \
             .limit(max_keys)
 
         LOG.debug('Retrieving keys to be processed: %s -- %s', selq, selq.compile().params)
         with self._engine.connect() as conn:
-            return conn.execute(selq)
+            return [e for e in conn.execute(selq)]
 
     def count_keys(self):
-        selq = select(func.count(self._keys.c.id))
+        selq = select(func.count(self._keys.c.id)) \
+            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == db.CO_CONFIRMED))
 
         LOG.debug('Counting all keys: %s -- %s', selq, selq.compile().params)
         try:
             with self._engine.connect() as conn:
-                c = [cnt for cnt in conn.execute(selq)]
-
-                # Result is an iterable of tuples:
-                return c[0][0]
+                res = conn.execute(selq)
+                # This is a 1-element tuple.
+                return res.one_or_none()[0]
         except OperationalError:
             LOG.exception('Cannot count keys')
             return None
 
     def fetch_keys_to_delete(self):
-        seldel = select(self._keys.c.email, self._keys.c.id).where(self._keys.c.status == db.ST_TO_BE_DELETED).limit(self.keys_read_max)
+        seldel = select(self._keys.c.email, self._keys.c.id) \
+            .where(self._keys.c.status == db.ST_TO_BE_DELETED) \
+            .limit(self.keys_read_max)
+
         with self._engine.connect() as conn:
-            return conn.execute(seldel)
+            return [e for e in conn.execute(seldel)]
 
     def delete_keys(self, row_id, /, email=None):
         """Remove key from the database."""
@@ -178,7 +182,7 @@ class KeyConfirmationQueue:
 
         with self._engine.connect() as conn:
             LOG.debug('Deleting public keys associated with confirmed email: %s', delq)
-            return conn.execute(delq)
+            conn.execute(delq)
 
     def delete_key_by_email(self, email):
         """Remove keys linked to the given email from the database."""

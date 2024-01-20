@@ -41,6 +41,9 @@ def sub_queue(args):
     elif args.list:
         for k in queue.fetch_keys():
             print(f'- {k.id}: {k.email}')
+    elif args.to_delete:
+        for k in queue.fetch_keys_to_delete():
+            print(f'- {k.id}: {k.email}')
     else:
         cnt = queue.count_keys()
         if cnt is None:
@@ -125,6 +128,8 @@ def main():
                            help='delete specified email from the queue')
     cmd_queue.add_argument('-l', '--list', action='store_true',
                            help='list keys in the queue')
+    cmd_queue.add_argument('-d', '--to-delete', action='store_true',
+                           help='list keys to be deleted')
     cmd_queue.set_defaults(operation=sub_queue)
 
     cmd_identities = sub_commands.add_parser('identities',

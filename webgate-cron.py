@@ -94,8 +94,7 @@ try:
                 notify("PGP key deleted", "keyDeleted.md", email)
 
     LOG.info('Cleaning up after a round of key confirmation')
-    stat2_result_set = key_queue.fetch_keys_to_delete()
-    for email, row_id in stat2_result_set:
+    for email, row_id in key_queue.fetch_keys_to_delete():
         LOG.debug('Removing key from keyring: %s', email)
         GnuPG.delete_key(key_dir, email)
 
