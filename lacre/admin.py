@@ -29,6 +29,17 @@ def _no_database():
     sys.exit(lacre.EX_CONFIG)
 
 
+def sub_db(args):
+    """Sub-command to manipulate database."""
+    LOG.debug('Database operations ahead')
+
+    if args.init:
+        eng = repo.init_engine(conf.get_item('database', 'url'))
+        LOG.warning('Initialising database schema with engine: %s', eng)
+        print('Creating database tables')
+        db.create_tables(eng)
+
+
 def sub_queue(args):
     """Sub-command to inspect queue contents."""
     LOG.debug('Inspecting queue...')
@@ -110,6 +121,14 @@ def main():
         )
 
     sub_commands = parser.add_subparsers(help='Sub-commands', required=True)
+
+    cmd_db = sub_commands.add_parser('database',
+        help='',
+        aliases=['db']
+        )
+    cmd_db.add_argument('-i', '--init', action='store_true',
+                        help='Initialise database schema')
+    cmd_db.set_defaults(operation=sub_db)
 
     cmd_import = sub_commands.add_parser('import',
         help='Load identities from GnuPG directory to Lacre database'
