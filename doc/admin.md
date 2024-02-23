@@ -11,6 +11,20 @@ python -m lacre.admin -h
 
 Of course `-h` displays some help.
 
+**Note:** Help output includes information about the configuration file being
+in use, which may be useful at times.
+
+
+## Initialising database schema
+
+If you want to initialise Lacre's database (which is also used by the
+frontend), run:
+
+```sh
+python -m lacre.admin database -i
+```
+
+
 ## Inspecting key confirmation queue
 
 To find out how many keys are waiting to be confirmed, run:
