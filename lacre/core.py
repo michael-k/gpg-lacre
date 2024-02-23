@@ -1,20 +1,20 @@
 #
-# gpg-mailgate
+# lacre
 #
-# This file is part of the gpg-mailgate source code.
+# This file is part of the lacre source code.
 #
-# gpg-mailgate is free software: you can redistribute it and/or modify
+# lacre is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# gpg-mailgate source code is distributed in the hope that it will be useful,
+# lacre source code is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
+# along with lacre source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
 """Lacre's actual mail-delivery module.
@@ -142,7 +142,7 @@ def _gpg_encrypt_and_deliver(message: EmailMessage, keys, recipients, encrypt_f)
 
 def _customise_headers(message: EmailMessage):
     if conf.flag_enabled('default', 'add_header'):
-        message['X-GPG-Mailgate'] = 'Encrypted by GPG Mailgate'
+        message['X-Lacre'] = 'Encrypted by Lacre'
 
 
 def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline):

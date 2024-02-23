@@ -33,13 +33,13 @@ setting port to `10026`.
 Command to spawn a Lacre daemon process is:
 
 ```
-GPG_MAILGATE_CONFIG=/etc/gpg-mailgate.conf PYTHONPATH=... python -m lacre.daemon
+LACRE_CONFIG=/etc/lacre.conf PYTHONPATH=... python -m lacre.daemon
 ```
 
 Two environment variables used here are:
 
-  * `GPG_MAILGATE_CONFIG` (not mandatory) -- path to Lacre configuration,
-    unless it's kept in default location (`/etc/gpg-maillgate.conf`).
+  * `LACRE_CONFIG` (not mandatory) -- path to Lacre configuration,
+    unless it's kept in default location (`/etc/lacre.conf`).
   * `PYTHONPATH` (not mandatory) -- location of Lacre modules. You can place
     them below your Python's `site-packages` to be reachable by any other
     Python software.

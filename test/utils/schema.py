@@ -90,8 +90,8 @@ AQgHiHgEGBYIACAWIQQZz0tH7MnEevqE1L2W85/aDjG7ZwUCYdTF4AIbDAAKCRCW\n\
 OjjB6xRD0Q2FN+alsNGCtdutAs18AZ5l33RMzws=\n\
 =wWoq\n\
 -----END PGP PUBLIC KEY BLOCK-----\
-", "status": 0, "confirm": "", "time": None},
-    {"id": 3, "email": "cecil@lacre.io", "publickey": "RUBBISH", "status": 0, "confirm": "", "time": None}
+", "status": 1, "confirm": "", "time": None},
+    {"id": 3, "email": "cecil@lacre.io", "publickey": "RUBBISH", "status": 2, "confirm": "", "time": None}
     ])
 
 conn.execute(identities.insert(), [

@@ -17,17 +17,17 @@ _HOUR_IN_SECONDS = 3600
 _engine = None
 
 
-def init_engine(url):
+def init_engine(url, db_debug=False):
     global _engine
 
     if not _engine:
-        config = _conn_config()
+        config = _conn_config(db_debug)
         _engine = create_engine(url, **config)
 
     return _engine
 
 
-def _conn_config():
+def _conn_config(db_debug):
     config = dict()
 
     mode = PoolingMode.from_config('database', 'pooling_mode', required=True)
@@ -44,6 +44,10 @@ def _conn_config():
 
     if config_item_set('database', 'max_overflow'):
         config['max_overflow'] = int(get_item('database', 'max_overflow'))
+
+    if db_debug:
+        config['echo'] = 'debug'
+        config['echo_pool'] = 'debug'
 
     LOG.debug('Database engine configuration: %s', config)
     return config
@@ -71,7 +75,7 @@ class IdentityRepository(KeyRing):
     def _insert(self, email, fprint):
         insq = self._identities.insert().values(email=email, fingerprint=fprint)
 
-        LOG.debug('Registering identity %s: %s', email, insq)
+        LOG.debug('Registering identity: %s -- %s', insq, insq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(insq)
 
@@ -80,13 +84,13 @@ class IdentityRepository(KeyRing):
             .values(fingerprint=fprint) \
             .where(self._identities.c.email == email)
 
-        LOG.debug('Updating identity %s: %s', email, upq)
+        LOG.debug('Updating identity: %s -- %s', upq, upq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(upq)
 
     def delete(self, email):
         delq = delete(self._identities).where(self._identities.c.email == email)
-        LOG.debug('Deleting keys assigned to %s', email)
+        LOG.debug('Deleting assigned keys: %s -- %s', delq, delq.compile().params)
 
         with self._engine.connect() as conn:
             conn.execute(delq)
@@ -118,7 +122,7 @@ class IdentityRepository(KeyRing):
         all_identities = select(self._identities.c.fingerprint, self._identities.c.email)
         with self._engine.connect() as conn:
             result = conn.execute(all_identities)
-            LOG.debug('Retrieving all keys')
+            LOG.debug('Retrieving all keys: %s', all_identities)
             return KeyCache({key_id: email for key_id, email in result})
 
 
@@ -135,33 +139,37 @@ class KeyConfirmationQueue:
     def fetch_keys(self, /, max_keys=None):
         """Runs a query to retrieve at most `keys_read_max` keys and returns db result."""
         max_keys = max_keys or self.keys_read_max
+        LOG.debug('Row limit: %d', max_keys)
 
         selq = select(self._keys.c.publickey, self._keys.c.id, self._keys.c.email) \
-            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == "")) \
+            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == db.CO_CONFIRMED)) \
             .limit(max_keys)
 
-        LOG.debug('Retrieving keys to be processed: %s', selq)
+        LOG.debug('Retrieving keys to be processed: %s -- %s', selq, selq.compile().params)
         with self._engine.connect() as conn:
-            return conn.execute(selq)
+            return [e for e in conn.execute(selq)]
 
     def count_keys(self):
-        selq = select(func.count(self._keys.c.id))
+        selq = select(func.count(self._keys.c.id)) \
+            .where(and_(self._keys.c.status == db.ST_DEFAULT, self._keys.c.confirm == db.CO_CONFIRMED))
 
-        LOG.debug('Counting all keys: %s', selq)
+        LOG.debug('Counting all keys: %s -- %s', selq, selq.compile().params)
         try:
             with self._engine.connect() as conn:
-                c = [cnt for cnt in conn.execute(selq)]
-
-                # Result is an iterable of tuples:
-                return c[0][0]
+                res = conn.execute(selq)
+                # This is a 1-element tuple.
+                return res.one_or_none()[0]
         except OperationalError:
             LOG.exception('Cannot count keys')
             return None
 
     def fetch_keys_to_delete(self):
-        seldel = select(self._keys.c.email, self._keys.c.id).where(self._keys.c.status == db.ST_TO_BE_DELETED).limit(self.keys_read_max)
+        seldel = select(self._keys.c.email, self._keys.c.id) \
+            .where(self._keys.c.status == db.ST_TO_BE_DELETED) \
+            .limit(self.keys_read_max)
+
         with self._engine.connect() as conn:
-            return conn.execute(seldel)
+            return [e for e in conn.execute(seldel)]
 
     def delete_keys(self, row_id, /, email=None):
         """Remove key from the database."""
@@ -174,7 +182,7 @@ class KeyConfirmationQueue:
 
         with self._engine.connect() as conn:
             LOG.debug('Deleting public keys associated with confirmed email: %s', delq)
-            return conn.execute(delq)
+            conn.execute(delq)
 
     def delete_key_by_email(self, email):
         """Remove keys linked to the given email from the database."""

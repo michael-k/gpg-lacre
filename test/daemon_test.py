@@ -1,20 +1,20 @@
 #
-# gpg-mailgate
+# lacre
 #
-# This file is part of the gpg-mailgate source code.
+# This file is part of the lacre source code.
 #
-# gpg-mailgate is free software: you can redistribute it and/or modify
+# lacre is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# gpg-mailgate source code is distributed in the hope that it will be useful,
+# lacre source code is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gpg-mailgate source code. If not, see <http://www.gnu.org/licenses/>.
+# along with lacre source code. If not, see <http://www.gnu.org/licenses/>.
 #
 
 import configparser
@@ -30,7 +30,7 @@ def _spawn(cmd):
         "PATH": os.getenv("PATH"),
         "PYTHONPATH": os.getcwd(),
         "LANG": 'en_US.UTF-8',
-        "GPG_MAILGATE_CONFIG": "test/gpg-mailgate-daemon-test.conf"
+        "LACRE_CONFIG": "test/lacre-daemon.conf"
         }
     logging.debug(f"Spawning command: {cmd} with environment: {env_dict!r}")
     return subprocess.Popen(cmd,

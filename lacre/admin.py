@@ -18,12 +18,26 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 import lacre.repositories as repo
 import lacre.dbschema as db
 
-LOG = logging.getLogger(__name__)
+if __name__ == '__main__':
+    LOG = logging.getLogger('lacre.admin')
+else:
+    LOG = logging.getLogger(__name__)
 
 
 def _no_database():
     print('Database unavailable or not configured properly')
-    exit(lacre.EX_CONFIG)
+    sys.exit(lacre.EX_CONFIG)
+
+
+def sub_db(args):
+    """Sub-command to manipulate database."""
+    LOG.debug('Database operations ahead')
+
+    if args.init:
+        eng = repo.init_engine(conf.get_item('database', 'url'))
+        LOG.warning('Initialising database schema with engine: %s', eng)
+        print('Creating database tables')
+        db.create_tables(eng)
 
 
 def sub_queue(args):
@@ -35,6 +49,12 @@ def sub_queue(args):
 
     if args.delete:
         queue.delete_key_by_email(args.delete)
+    elif args.list:
+        for k in queue.fetch_keys():
+            print(f'- {k.id}: {k.email}')
+    elif args.to_delete:
+        for k in queue.fetch_keys_to_delete():
+            print(f'- {k.id}: {k.email}')
     else:
         cnt = queue.count_keys()
         if cnt is None:
@@ -86,7 +106,10 @@ def sub_import(args):
 
 
 def main():
-    conf.validate_config(additional=conf.SCRIPT_REQUIRED)
+    missing = conf.validate_config()
+    if missing:
+        LOG.error('Missing configuration parameters: %s', missing)
+        sys.exit(lacre.EX_CONFIG)
 
     general_conf = conf.config_source()
     log_conf = conf.get_item('logging', 'config')
@@ -98,6 +121,14 @@ def main():
         )
 
     sub_commands = parser.add_subparsers(help='Sub-commands', required=True)
+
+    cmd_db = sub_commands.add_parser('database',
+        help='',
+        aliases=['db']
+        )
+    cmd_db.add_argument('-i', '--init', action='store_true',
+                        help='Initialise database schema')
+    cmd_db.set_defaults(operation=sub_db)
 
     cmd_import = sub_commands.add_parser('import',
         help='Load identities from GnuPG directory to Lacre database'
@@ -114,6 +145,10 @@ def main():
         )
     cmd_queue.add_argument('-D', '--delete',
                            help='delete specified email from the queue')
+    cmd_queue.add_argument('-l', '--list', action='store_true',
+                           help='list keys in the queue')
+    cmd_queue.add_argument('-d', '--to-delete', action='store_true',
+                           help='list keys to be deleted')
     cmd_queue.set_defaults(operation=sub_queue)
 
     cmd_identities = sub_commands.add_parser('identities',

@@ -28,9 +28,9 @@ test: e2etest daemontest unittest crontest
 #
 # Run a set of end-to-end tests.
 #
-# Test scenarios are described and configured by the test/e2e.ini
-# file.  Basically this is just a script that feeds GPG Mailgate with
-# known input and checks whether output meets expectations.
+# Test scenarios are described and configured by the test/e2e.ini file.
+# Basically this is just a script that feeds Lacre with known input and checks
+# whether output meets expectations.
 #
 e2etest: test/tmp test/logs pre-clean restore-keyhome
 	$(PYTHON) test/e2e_test.py
@@ -39,11 +39,11 @@ e2etest: test/tmp test/logs pre-clean restore-keyhome
 # Run a basic cron-job test.
 #
 # We use PYTHONPATH to make sure that cron.py can import GnuPG
-# package.  We also set GPG_MAILGATE_CONFIG env. variable to make sure
+# package.  We also set LACRE_CONFIG env. variable to make sure
 # it slurps the right config.
 #
 crontest: clean-db $(TEST_DB)
-	GPG_MAILGATE_CONFIG=test/gpg-mailgate-cron-test.conf PYTHONPATH=`pwd`	\
+	LACRE_CONFIG=test/lacre-daemon.conf PYTHONPATH=`pwd`	\
 	$(PYTHON) webgate-cron.py
 
 $(TEST_DB):
@@ -64,10 +64,10 @@ clean-db:
 # Run unit tests
 #
 unittest:
-	GPG_MAILGATE_CONFIG=test/gpg-mailgate.conf $(PYTHON) -m unittest discover -s test/modules
+	LACRE_CONFIG=test/lacre.conf $(PYTHON) -m unittest discover -s test/modules
 
 pre-clean:
-	rm -fv test/gpg-mailgate.conf
+	rm -fv test/lacre.conf
 	rm -f test/logs/*.log
 
 restore-keyhome:

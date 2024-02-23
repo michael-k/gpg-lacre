@@ -1,7 +1,7 @@
 #!/usr/local/bin/python2
 #
 # This quick-and-dirty script supports only the happy case of SMTP session,
-# i.e. what gpg-mailgate/gpg-lacre needs to deliver encrypted email.
+# i.e. what lacre needs to deliver encrypted email.
 #
 # It listens on the port given as the only command-line argument and consumes a
 # message, then prints it to standard output.  The goal is to be able to

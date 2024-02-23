@@ -3,19 +3,19 @@
 ## Content
 
 - General information
-- Install GPG-Mailgate
-- Install GPG-Mailgate-Web
+- Install Lacre
+- Install [Lacre-Webgate](https://git.disroot.org/Lacre/lacre-webgate)
 - Install Register-handler
 
 ## General information
 
-GPG-Mailgate is divided in 3 main parts: GPG-Mailgate itself, GPG-Mailgate-Web and Register-handler. Some parts of the GPG-Mailgate project depend on other parts of the project. You will find information about these dependencies at the beginning of every installation part.
+Lacre is divided in 3 main parts: Lacre itself, Lacre-Webgate and Register-handler. Some parts of the Lacre project depend on other parts of the project. You will find information about these dependencies at the beginning of every installation part.
 
-These instructions show you how to set up GPG-Mailgate in an easy way. If you are a more advanced user, feel free to experiment with the settings. For these instructions a home directory for the user `nobody` is set. Sadly this is an odd workaround but no better solution was found.
+These instructions show you how to set up Lacre in an easy way. If you are a more advanced user, feel free to experiment with the settings. For these instructions a home directory for the user `nobody` is set. Sadly this is an odd workaround but no better solution was found.
 
 These instructions are based on an installation on an Ubuntu 14.04 LTS virtual machine. For other Linux distributions and other versions these instructions might need to be adapted to your distribution (e.g. installation of packages and used directories).
 
-## Install GPG-Mailgate
+## Install Lacre
 
 ### Requirements
 
@@ -41,29 +41,26 @@ usermod -d /var/gpgmailgate nobody
 3. Create dedicated directories for storing PGP keys and S/MIME certificates and make the user `nobody` owner of these:
 
 ```
-mkdir -p /var/gpgmailgate/.gnupg
-mkdir -p /var/gpgmailgate/smime
-chown -R nobody:nogroup /var/gpgmailgate/
+install -u nobody -g nobody -d /var/gpgmailgate/ /var/gpgmailgate/.gnupg /var/gpgmailgate/smime
 ```
 
-4. Place the `gpg-mailgate.py` in `/usr/local/bin/`, make the user `nobody` owner of the file and make it executable:
+4. Place the `lacre.py` in `/usr/local/bin/`, make the user `nobody` owner of the file and make it executable:
 
 ```
-chown nobody:nogroup /usr/local/bin/gpg-mailgate.py
-chmod u+x /usr/local/bin/gpg-mailgate.py
+install -u nobody -g nobody -mode u=rx lacre.py /usr/local/bin/
 ```
 
-5. Place the `GnuPG` directory in `/usr/local/lib/python3.x/dist-packages` (replace 3.x with your Python version)
+5. Place `GnuPG` and `lacre` directories in `/usr/local/lib/python3.x/dist-packages` (replace 3.x with your Python version).  Make sure they're available for Python `import`s by executing `python -m lacre.admin -h` command.
 
-6. Configure `/etc/gpg-mailgate.conf` based on the provided `gpg-mailgate.conf.sample`. Change the settings according to your configuration. If you follow this guide and have a standard configuration for postfix, you don't need to change much.
+6. Configure `/etc/lacre.conf` based on the provided `lacre.conf.sample`. Change the settings according to your configuration. If you follow this guide and have a standard configuration for postfix, you don't need to change much.
 
-7. Configure logging by copying `gpg-lacre-logging.conf.sample` to `/etc/gpg-lacre-logging.conf` and editing it according to your needs. The path to this file is included in `[logging]` section of `gpg-mailgate.conf` file, so if you place it somewhere else, make sure to update the path too. See also: [Configuration file format](https://docs.python.org/3/library/logging.config.html#configuration-file-format).
+7. Configure logging by copying `lacre-logging.conf.sample` to `/etc/lacre-logging.conf` and editing it according to your needs. The path to this file is included in `[logging]` section of `lacre.conf` file, so if you place it somewhere else, make sure to update the path too. See also: Python logging package's [Configuration file format](https://docs.python.org/3/library/logging.config.html#configuration-file-format).
 
 8. Add the following to the end of `/etc/postfix/master.cf`
 
 ```
-gpg-mailgate    unix    -   n   n   -   -   pipe
-    flags= user=nobody argv=/usr/local/bin/gpg-mailgate.py ${recipient}
+lacre    unix    -   n   n   -   -   pipe
+    flags= user=nobody argv=/usr/local/bin/lacre.py ${recipient}
 
 127. 0. 0. 1:10028 inet    n   -   n   -   10  smtpd
     -o content_filter=
@@ -76,12 +73,12 @@ gpg-mailgate    unix    -   n   n   -   -   pipe
     -o smtpd_authorized_xforward_hosts=127. 0. 0. 0/8
 ```
 
-If you use Postfix versions from 2.5 onwards, it is recommended to change `${recipient}` to `${original_recipient}` in line two of the lines above.
+If you use Postfix versions from 2.5 onwards, it is recommended to change `${recipient}` to `${original_recipient}` in second line of the snippet above.
 
 9. Add the following line to `/etc/postfix/main.cf`
 
 ```
-content_filter = gpg-mailgate
+content_filter = lacre
 ```
 
 10. Optional: GPG can automatically download new public keys for automatic signature verification. To enable automatic create the file `/var/gpgmailgate/.gnupg/gpg.conf`. Add the following line to the file:
@@ -98,22 +95,23 @@ You are now ready to go. To add a public key for encryption just use the followi
 sudo -u nobody /usr/bin/gpg --homedir=/var/gpgmailgate/.gnupg --import /some/public.key
 ```
 
-- Replace `/some/public.key` with the location of a public key
-- `/some/public.key` can be deleted after importation
+- Replace `/some/public.key` with the location of a public key (`/some/public.key` can be deleted after the import).
 - Confirm that it's working: `sudo -u nobody /usr/bin/gpg --list-keys --homedir=/var/gpgmailgate/.gnupg`
+
+If you already have a keyring you would like to import into Lacre, you can use `lacre.admin` command-line utility.  Read more in [Lacre administration](doc/admin.md).
 
 Please also test your installation before using it.
 
-GPG-Mailgate is also able to handle S/MIME certificates for encrypting mails. However, it is best to use it in combination with Register-Handler described later to add new certificates. If you try to add them manually it might fail. The certificates are stored in `/var/gpgmailgate/smime` in PKCS7 format and are named like `User@example.com` (the user part is case sensitive, the domain part should be in lower case).
+Lacre is also able to handle S/MIME certificates for encrypting mails. However, it is best to use it in combination with Register-Handler described later to add new certificates. If you try to add them manually it might fail. The certificates are stored in `/var/gpgmailgate/smime` in PKCS7 format and are named like `User@example.com` (the user part is case sensitive, the domain part should be in lower case).
 
 #### Additional settings
 
 Most mail servers do not handle mail addresses case sensitive. If you know that all your recipient mail servers do not care about case sensitivity then you can set `mail_case_insensitive` in the settings to `yes` so looking up PGP keys or S/MIME certificates does also happen case insensitive.
-If your recipients have problems to decrypt mails encrypted by GPG-Mailgate they might use a piece of software that does not support PGP/MIME encrypted mails. You can tell GPG-Mailgate to use the legacy PGP/INLINE format by adding the recipient to the `pgp_style` map in the following format:
+If your recipients have problems to decrypt mails encrypted by Lacre they might use a piece of software that does not support PGP/MIME encrypted mails. You can tell Lacre to use the legacy PGP/INLINE format by adding the recipient to the `pgp_style` map in the following format:
 `User@example.com=inline`
 
 
-## Install GPG-Mailgate-Web
+## Install Lacre-Webgate
 
 ### Requirements
 
@@ -134,13 +132,13 @@ repository.
 apt-get install python-mysqldb python-markdown
 ```
 
-2. Create a new database for GPG-Mailgate-Web.
+2. Create a new database for Lacre-Webgate.
 
 3. Import the schema file `schema.sql` into the newly created database.
 
-4. Edit the config file located at `/etc/gpg-mailgate.conf`. Set `enabled = yes` in `[database]` and fill in the necessary settings for the database connection.
+4. Edit the config file located at `/etc/lacre.conf`. Set `enabled = yes` in `[database]` and fill in the necessary settings for the database connection.
 
-5. Copy the files located in the [public_html](gpg-mailgate-web/public_html) directory onto your webserver. They can also be placed in a subdirectory on your webserver.
+5. Copy the files located in the [public_html](https://git.disroot.org/Lacre/lacre-webgate/src/branch/main/public_html) directory onto your webserver. They can also be placed in a subdirectory on your webserver.
 
 6. On your webserver move the `config.sample.php` file to `config.php` and edit the configuration file.
 
@@ -156,28 +154,27 @@ mkdir -p /var/gpgmailgate/cron_templates
 chown -R nobody:nogroup /var/gpgmailgate/cron_templates
 ```
 
-9. Copy `cron.py` to `/usr/local/bin/gpgmw-cron.py`. Make it executable and and transfer ownership to `nobody`:
+9. Copy `cron.py` to `/usr/local/bin/cron.py`. Make it executable and and transfer ownership to `nobody`:
 
 ```
-chown nobody:nogroup /usr/local/bin/gpgmw-cron.py
-chmod u+x /usr/local/bin/gpgmw-cron.py
+install -u nobody -g nobody -m u+x cron.py /usr/local/bin/lacre-cron.py
 ```
 
-10. Create `/etc/cron.d/gpgmw` with contents:
-`*/3 * * * * nobody /usr/bin/python /usr/local/bin/gpgmw-cron.py > /dev/null`
+10. Create `/etc/cron.d/lacre-cron` with contents:
+`*/3 * * * * nobody /usr/bin/python /usr/local/bin/lacre-cron.py > /dev/null`
  for executing the cron job automatically.
 
 11. Test your installation.
 
-### GPG-Mailgate-Web as keyserver
+### Lacre-Webgate as keyserver
 
-GPG-Mailgate-Web can also be used as a keyserver. For more information have a look at GPG-Mailgate-Web's [readme](gpg-mailgate-web/README).
+Lacre-Webgate can also be used as a keyserver. For more information have a look at Lacre-Webgate's [README](https://git.disroot.org/Lacre/lacre-webgate/src/branch/main/README.md).
 
 ## Install Register-handler
 
 ### Requirements
 
-- Already set up and working GPG-Mailgate-Web. It should be reachable from the machine that will run register-handler
+- Already set up and working Lacre-Webgate. It should be reachable from the machine that will run register-handler
 - Postfix is already installed and configured. It is recommended that you have already tested your configuration so we can exclude this as a main cause of problems. Your Postfix configuration should also support aliases
 
 ### Installation
@@ -203,11 +200,10 @@ chown -R nobody:nogroup /var/gpgmailgate/register_templates
 4. Copy `register-handler.py` to `/usr/local/bin/register-handler.py`. Make it executable and own it to `nobody`:
 
 ```
-chown nobody:nogroup /usr/local/bin/register-handler.py
-chmod a+x /usr/local/bin/register-handler.py
+install -u nobody -g nogroup -m a+x register-handler.py /usr/local/bin/
 ```
 
-5. Edit the config file located at `/etc/gpg-mailgate.conf`. Set the parameter `webpanel_url` in `[mailregister]` to the url of your GPG-Mailgate-Web panel (the URL should be the same as the one you use to access the panel with your web browser). Also set the parameter `register_email` to the email address you want the user to see when receiving mails from the register-handler (it does not have to be an existing address but it is recommended). Register-handler will send users mails when they are registering S/MIME certificates or when neither a S/MIME certificate nor a PGP key was found in a mail sent to the register-handler.
+5. Edit the config file located at `/etc/lacre.conf`. Set the parameter `webpanel_url` in `[mailregister]` to the url of your Lacre-Webgate panel (the URL should be the same as the one you use to access the panel with your web browser). Also set the parameter `register_email` to the email address you want the user to see when receiving mails from the register-handler (it does not have to be an existing address but it is recommended). Register-handler will send users mails when they are registering S/MIME certificates or when neither a S/MIME certificate nor a PGP key was found in a mail sent to the register-handler.
 
 6. Add `register:   |/usr/local/bin/register-handler.py` to `/etc/aliases`
 
