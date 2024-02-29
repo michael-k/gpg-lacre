@@ -124,7 +124,10 @@ async def _main():
 
         keyring.post_init_hook()
 
-        LOG.info('Starting the daemon...')
+        LOG.info('Starting the daemon with GnuPG=%s, socket=%s, database=%s',
+                 keyring_path,
+                 conf.daemon_params(),
+                 conf.get_item('database', 'url'))
         controller.start()
 
         await _sleep()

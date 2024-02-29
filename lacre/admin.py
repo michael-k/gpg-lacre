@@ -109,6 +109,7 @@ def main():
     missing = conf.validate_config()
     if missing:
         LOG.error('Missing configuration parameters: %s', missing)
+        print('Insufficient configuration, aborting.')
         sys.exit(lacre.EX_CONFIG)
 
     general_conf = conf.config_source()
