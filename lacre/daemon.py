@@ -42,9 +42,6 @@ class MailEncryptionProxy:
                 if message.defects:
                     LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
 
-                if conf.flag_enabled('daemon', 'log_headers'):
-                    LOG.info('Message headers: %s', self._extract_headers(message))
-
                 send = xport.SendFrom(envelope.mail_from)
                 for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                     LOG.debug(f"Sending mail via {operation!r}")
@@ -55,21 +52,22 @@ class MailEncryptionProxy:
                         # If the message can't be encrypted, deliver cleartext.
                         LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
                         if not isinstance(operation, KeepIntact):
-                            self._send_unencrypted(operation, message, envelope, send)
+                            self._send_unencrypted(operation, envelope, send)
                         else:
                             LOG.exception('Cannot perform: %s', operation)
                             raise
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
-                return xport.RESULT_ERROR
+                if conf.should_log_headers():
+                    LOG.info('Message headers: %s', self._extract_headers(message))
+                return xport.RESULT_ERRORR
 
         return xport.RESULT_OK
 
-    def _send_unencrypted(self, operation, message, envelope, send: xport.SendFrom):
-        keep = KeepIntact(operation.recipients())
-        new_message = keep.perform(message)
-        send(new_message, operation.recipients())
+    def _send_unencrypted(self, operation, envelope, send: xport.SendFrom):
+        # Do not parse and re-generate the message, just send it as it is.
+        send(envelope.original_content, operation.recipients())
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
