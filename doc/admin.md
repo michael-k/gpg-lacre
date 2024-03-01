@@ -14,6 +14,9 @@ Of course `-h` displays some help.
 **Note:** Help output includes information about the configuration file being
 in use, which may be useful at times.
 
+**Note:** You can also use a tiny shell wrapper around this tool, see
+`bin/lacreadm`.
+
 
 ## Initialising database schema
 
