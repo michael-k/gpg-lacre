@@ -27,7 +27,8 @@ documentation.
 import email
 import email.mime.multipart
 from email.message import EmailMessage
-from email.policy import SMTP
+from email.policy import SMTP, SMTPUTF8
+from email.errors import HeaderParseError
 
 import unittest
 from configparser import RawConfigParser
@@ -164,6 +165,26 @@ class EmailParsingTest(unittest.TestCase):
 
         self.assertIsInstance(payload, str)
         self.assertTrue(message_boundary in payload)
+
+    def test_fail_if_message_id_parsing_is_fixed(self):
+        # Unfortunately, Microsoft sends messages with Message-Id header values
+        # that email parser can't process.
+        #
+        # Bug: https://github.com/python/cpython/issues/105802
+        # Fix: https://github.com/python/cpython/pull/108133
+
+        rawmsg = b"From: alice@lacre.io\r\n" \
+          + b"To: bob@lacre.io\r\n" \
+          + b"Subject: Test message\r\n" \
+          + b"Content-Type: text/plain\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"Message-Id: <[yada-yada-yada@microsoft.com]>\r\n" \
+          + b"\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n"
+
+        msg = email.message_from_bytes(rawmsg, policy=SMTPUTF8)
+        self.assertEqual(len(msg.defects), 0)
+        self.assertRaises(IndexError, lambda: msg['Message-Id'])
 
 
 class EmailTest(unittest.TestCase):

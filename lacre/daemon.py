@@ -42,9 +42,6 @@ class MailEncryptionProxy:
                 if message.defects:
                     LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
 
-                if conf.flag_enabled('daemon', 'log_headers'):
-                    LOG.info('Message headers: %s', self._extract_headers(message))
-
                 send = xport.SendFrom(envelope.mail_from)
                 for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
                     LOG.debug(f"Sending mail via {operation!r}")
@@ -55,21 +52,24 @@ class MailEncryptionProxy:
                         # If the message can't be encrypted, deliver cleartext.
                         LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
                         if not isinstance(operation, KeepIntact):
-                            self._send_unencrypted(operation, message, envelope, send)
+                            self._send_unencrypted(operation, envelope, send)
                         else:
                             LOG.exception('Cannot perform: %s', operation)
                             raise
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
-                return xport.RESULT_ERROR
+
+                if conf.should_log_headers():
+                    LOG.error('Erroneous message headers: %s', self._beginning(envelope))
+
+                return xport.RESULT_ERRORR
 
         return xport.RESULT_OK
 
-    def _send_unencrypted(self, operation, message, envelope, send: xport.SendFrom):
-        keep = KeepIntact(operation.recipients())
-        new_message = keep.perform(message)
-        send(new_message, operation.recipients())
+    def _send_unencrypted(self, operation, envelope, send: xport.SendFrom):
+        # Do not parse and re-generate the message, just send it as it is.
+        send(envelope.original_content, operation.recipients())
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)
@@ -79,13 +79,6 @@ class MailEncryptionProxy:
             limit = double_eol_pos
         end = min(limit, 2560)
         return e.original_content[0:end]
-
-    def _extract_headers(self, message: email.message.Message):
-        return {
-            'mime'     : message.get_content_type(),
-            'charsets' : message.get_charsets(),
-            'cte'      : message['Content-Transfer-Encoding']
-            }
 
     def _seconds_between(self, start_ms, end_ms) -> float:
         return (end_ms - start_ms) * 1000

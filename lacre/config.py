@@ -143,6 +143,11 @@ def strict_mode():
     return ("default" in cfg and cfg["default"]["enc_keymap_only"] == "yes")
 
 
+def should_log_headers() -> bool:
+    """Check if Lacre should log message headers."""
+    return flag_enabled('daemon', 'log_headers')
+
+
 class FromStrMixin:
     """Additional operations for configuration enums."""
 
