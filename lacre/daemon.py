@@ -59,8 +59,10 @@ class MailEncryptionProxy:
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
+
                 if conf.should_log_headers():
-                    LOG.info('Message headers: %s', self._extract_headers(message))
+                    LOG.error('Erroneous message headers: %s', self._beginning(envelope))
+
                 return xport.RESULT_ERRORR
 
         return xport.RESULT_OK
@@ -77,13 +79,6 @@ class MailEncryptionProxy:
             limit = double_eol_pos
         end = min(limit, 2560)
         return e.original_content[0:end]
-
-    def _extract_headers(self, message: email.message.Message):
-        return {
-            'mime'     : message.get_content_type(),
-            'charsets' : message.get_charsets(),
-            'cte'      : message['Content-Transfer-Encoding']
-            }
 
     def _seconds_between(self, start_ms, end_ms) -> float:
         return (end_ms - start_ms) * 1000
