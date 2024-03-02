@@ -22,6 +22,11 @@ from email.policy import SMTP, SMTPUTF8
 LOG = logging.getLogger(__name__)
 
 
+class MailSerialisationException(BaseException):
+    """We can't turn an EmailMessage into sequence of bytes."""
+    pass
+
+
 class MailOperation:
     """Contract for an operation to be performed on a message."""
 
@@ -124,7 +129,10 @@ class KeepIntact(MailOperation):
 
     def perform(self, message: Message) -> bytes:
         """Return MESSAGE unmodified."""
-        return message.as_bytes(policy=SMTPUTF8)
+        try:
+            return message.as_bytes(policy=SMTPUTF8)
+        except IndexError as e:
+            raise MailSerialisationException(e)
 
     def __repr__(self):
         """Return representation with just method and email."""

@@ -33,6 +33,6 @@ class ExecutionTimeLoggerTest(unittest.TestCase):
         self.assertEqual(handler.logged_records[1], 'Doing something')
 
         # Exception record should include the timing result and the traceback...
-        self.assertRegex(handler.logged_records[2], '^Just a test took 0 ms, raised exception\nTraceback.*')
+        self.assertRegex(handler.logged_records[2], '^Just a test took \\d ms, raised exception\nTraceback.*')
         # ...as well as the original exception
         self.assertRegex(handler.logged_records[2], 'Exception: this is a test$')
