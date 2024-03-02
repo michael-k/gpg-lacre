@@ -20,7 +20,8 @@ class ExecutionTimeLogger:
         ellapsed = (end - self._start) * 1000
 
         if exc_type:
-            self._log.error('%s took %d ms, raised exception %s', self._message, ellapsed, exc_type)
+            exception = (exc_type, exc_value, traceback)
+            self._log.error('%s took %d ms, raised exception', self._message, ellapsed, exc_info=exception)
         else:
             self._log.info('%s took %d ms', self._message, ellapsed)
 
