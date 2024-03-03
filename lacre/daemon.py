@@ -63,7 +63,7 @@ class MailEncryptionProxy:
                 if conf.should_log_headers():
                     LOG.error('Erroneous message headers: %s', self._beginning(envelope))
 
-                return xport.RESULT_ERRORR
+                return xport.RESULT_ERROR
 
         return xport.RESULT_OK
 
