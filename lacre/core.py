@@ -40,7 +40,7 @@ import lacre.keyring as kcache
 import lacre.recipients as recpt
 import lacre.smime as smime
 from lacre.transport import send_msg, register_sender, SendFrom
-from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt
+from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt, MailSerialisationException
 
 
 LOG = logging.getLogger(__name__)
@@ -127,7 +127,10 @@ def _gpg_encrypt_copy(message: EmailMessage, keys, recipients, encrypt_f):
 
 def _gpg_encrypt_to_bytes(message: EmailMessage, keys, recipients, encrypt_f) -> bytes:
     msg_copy = _gpg_encrypt_copy(message, keys, recipients, encrypt_f)
-    return msg_copy.as_bytes(policy=SMTPUTF8)
+    try:
+        return msg_copy.as_bytes(policy=SMTPUTF8)
+    except IndexError:
+        raise MailSerialisationException()
 
 
 def _gpg_encrypt_to_str(message: EmailMessage, keys, recipients, encrypt_f) -> str:

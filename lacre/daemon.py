@@ -22,7 +22,7 @@ from GnuPG import EncryptionException
 import lacre.core as gate
 import lacre.keyring as kcache
 import lacre.transport as xport
-from lacre.mailop import KeepIntact
+from lacre.mailop import KeepIntact, MailSerialisationException
 
 
 class MailEncryptionProxy:
@@ -48,9 +48,9 @@ class MailEncryptionProxy:
                     try:
                         new_message = operation.perform(message)
                         send(new_message, operation.recipients())
-                    except EncryptionException as e:
+                    except (EncryptionException, MailSerialisationException, UnicodeEncodeError):
                         # If the message can't be encrypted, deliver cleartext.
-                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
+                        LOG.exception('Unable to encrypt message, delivering in cleartext')
                         if not isinstance(operation, KeepIntact):
                             self._send_unencrypted(operation, envelope, send)
                         else:
