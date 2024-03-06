@@ -9,8 +9,9 @@ import lacre.config as conf
 # Mail status constants.
 #
 # These are the only values that our mail handler is allowed to return.
-RESULT_OK = '250 OK'
-RESULT_ERROR = '500 Could not process your message'
+RESULT_OK = '250 OK'                              # delivered
+RESULT_ABORT = '451 Aborted: error in processing' # aborted, retry later
+RESULT_FAILED = '554 Transaction failed'          # failed
 
 LOG = logging.getLogger(__name__)
 
@@ -68,4 +69,7 @@ class SendFrom:
         if conf.flag_enabled('relay', 'starttls'):
             smtp.starttls()
 
-        smtp.sendmail(self._from_addr, recipients, message)
+        try:
+            smtp.sendmail(self._from_addr, recipients, message)
+        except smtplib.SMTPException:
+            LOG.exception('Failed to deliver message')

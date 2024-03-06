@@ -40,7 +40,7 @@ class MailEncryptionProxy:
                 message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
 
                 if message.defects:
-                    LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
+                    LOG.warning("Issues found: %s", repr(message.defects))
 
                 send = xport.SendFrom(envelope.mail_from)
                 for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
@@ -48,14 +48,12 @@ class MailEncryptionProxy:
                     try:
                         new_message = operation.perform(message)
                         send(new_message, operation.recipients())
-                    except (EncryptionException, MailSerialisationException, UnicodeEncodeError):
-                        # If the message can't be encrypted, deliver cleartext.
-                        LOG.exception('Unable to encrypt message, delivering in cleartext')
-                        if not isinstance(operation, KeepIntact):
-                            self._send_unencrypted(operation, envelope, send)
-                        else:
-                            LOG.exception('Cannot perform: %s', operation)
-                            raise
+                    except (EncryptionException, MailSerialisationException) as e:
+                        # If the message can't be encrypted or serialised to a
+                        # stream of bytes, deliver original payload in
+                        # cleartext.
+                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
+                        self._send_unencrypted(operation, envelope, send)
 
             except:
                 LOG.exception('Unexpected exception caught, bouncing message')
@@ -63,7 +61,7 @@ class MailEncryptionProxy:
                 if conf.should_log_headers():
                     LOG.error('Erroneous message headers: %s', self._beginning(envelope))
 
-                return xport.RESULT_ERROR
+                return xport.RESULT_ABORT
 
         return xport.RESULT_OK
 
@@ -80,9 +78,6 @@ class MailEncryptionProxy:
         end = min(limit, 2560)
         return e.original_content[0:end]
 
-    def _seconds_between(self, start_ms, end_ms) -> float:
-        return (end_ms - start_ms) * 1000
-
 
 def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
@@ -90,7 +85,10 @@ def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5)
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
     return Controller(proxy, hostname=host, port=port,
                       ready_timeout=tout,
-                      data_size_limit=max_body_bytes)
+                      data_size_limit=max_body_bytes,
+                      # Do not decode data into str as we only operate on raw
+                      # data available via Envelope.original_content.
+                      decode_data=False)
 
 
 def _validate_config():
