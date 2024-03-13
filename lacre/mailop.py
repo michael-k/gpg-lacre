@@ -131,7 +131,7 @@ class KeepIntact(MailOperation):
         """Return MESSAGE unmodified."""
         try:
             return message.as_bytes(policy=SMTPUTF8)
-        except (IndexError, UnicodeEncodeError) as e:
+        except (IndexError, UnicodeEncodeError, ValueError) as e:
             raise MailSerialisationException(e)
 
     def __repr__(self):

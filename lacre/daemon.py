@@ -55,11 +55,19 @@ class MailEncryptionProxy:
                         LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
                         self._send_unencrypted(operation, envelope, send)
 
-            except:
-                LOG.exception('Unexpected exception caught, bouncing message')
+            except xport.TransientFailure:
+                LOG.info('Bouncing message')
+                return xport.RESULT_ABORT
 
+            except xport.PermanentFailure:
+                LOG.exception('Permanent failure')
+                return xport.RESULT_PERM_FAIL
+
+            except:
                 if conf.should_log_headers():
-                    LOG.error('Erroneous message headers: %s', self._beginning(envelope))
+                    LOG.exception('Unexpected exception caught, bouncing message. Erroneous message headers: %s', self._beginning(envelope))
+                else:
+                    LOG.exception('Unexpected exception caught, bouncing message')
 
                 return xport.RESULT_ABORT
 

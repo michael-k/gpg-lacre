@@ -45,8 +45,8 @@ def notify(mailsubject, messagefile, recipients = None):
     msg.attach(MIMEText(markdown.markdown(mailbody), 'html'))
 
     if conf.config_item_set('relay', 'host') and conf.config_item_set('relay', 'enc_port'):
-        (host, port) = conf.relay_params()
-        smtp = smtplib.SMTP(host, port)
+        host = conf.relay_params()
+        smtp = smtplib.SMTP(host.name, host.port)
         _authenticate_maybe(smtp)
         LOG.info('Delivering notification: %s', recipients)
         smtp.sendmail(conf.get_item('cron', 'notification_email'), recipients, msg.as_string())
