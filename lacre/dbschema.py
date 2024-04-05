@@ -16,7 +16,8 @@ import sqlalchemy
 # Values for lacre_keys.status column:
 # - ST_DEFAULT: initial state;
 # - ST_IMPORTED: key has been successfully processed by cron job;
-# - ST_TO_BE_DELETED: key can be deleted.
+# - ST_TO_BE_DELETED: key can be deleted.  We only have checks for this value
+#   but never assign it, so this is a candidate for removal.
 ST_DEFAULT, ST_IMPORTED, ST_TO_BE_DELETED = range(3)
 
 # lacre_keys.confirmed is set to an empty string when a key is confirmed by the user.

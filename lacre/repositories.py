@@ -1,5 +1,7 @@
 """Lacre identity and key repositories."""
 
+from datetime import timedelta
+
 from sqlalchemy import create_engine, select, delete, and_, func
 from sqlalchemy.exc import OperationalError
 import logging
@@ -170,6 +172,16 @@ class KeyConfirmationQueue:
 
         with self._engine.connect() as conn:
             return [e for e in conn.execute(seldel)]
+
+    def delete_expired_queue_items(self, when):
+        max_hours = get_item('database', 'max_queue_hours', 1)
+        oldest = when - timedelta(hours=max_hours)
+
+        delq = delete(self._keys).where(self._keys.c.time < oldest)
+        LOG.debug('Deleting queue items older than %s: %s', repr(oldest), delq)
+
+        with self._engine.connect() as conn:
+            conn.execute(delq)
 
     def delete_keys(self, row_id, /, email=None):
         """Remove key from the database."""
