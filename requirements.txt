@@ -1,5 +1,5 @@
 aiosmtpd==1.4.2
-SQLAlchemy==1.4.32
+SQLAlchemy==2.0.29
 Markdown==3.4.1
 M2Crypto==0.38.0
 requests==2.27.1
