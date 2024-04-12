@@ -25,6 +25,7 @@ import logging
 import lacre
 import lacre.config as conf
 from lacre.notify import notify
+from lacre.keymgmt import calculate_expiry_date
 
 # Read configuration from /etc/lacre.conf
 conf.load_config()
@@ -84,8 +85,8 @@ def cleanup(key_dir, key_queue):
 
         LOG.info('Deleted key for: %s', email)
 
-    now = datetime.now()
-    key_queue.delete_expired_queue_items(now)
+    expiry_date = calculate_expiry_date(datetime.now())
+    key_queue.delete_expired_queue_items(expiry_date)
 
 
 _validate_config()
