@@ -175,7 +175,14 @@ class KeyConfirmationQueue:
 
     def delete_expired_queue_items(self, older_than: datetime):
         """Remove keys that have been in queue before `older_than`."""
-        delq = delete(self._keys).where(self._keys.c.time < older_than)
+        delq = delete(self._keys) \
+            .where(
+                and_(
+                     self._keys.c.time < older_than,
+                     # We only want to delete keys that haven't been confirmed.
+                     self._keys.c.confirm != db.CO_CONFIRMED
+                   )
+                )
         LOG.debug('Deleting queue items older than %s: %s', repr(older_than), delq)
 
         with self._engine.connect() as conn:
