@@ -186,6 +186,103 @@ class EmailParsingTest(unittest.TestCase):
         self.assertEqual(len(msg.defects), 0)
         self.assertRaises(IndexError, lambda: msg['Message-Id'])
 
+    def test_headersonly_text_plain(self):
+        rawmsg = b"From: alice@lacre.io\r\n" \
+          + b"To: bob@lacre.io\r\n" \
+          + b"Subject: Test message\r\n" \
+          + b"Content-Type: text/plain\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"Message-Id: <[yada-yada-yada@microsoft.com]>\r\n" \
+          + b"\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n"
+
+        from email.parser import BytesHeaderParser
+        msg_headers_only = BytesHeaderParser(policy=SMTPUTF8).parsebytes(rawmsg)
+
+        self.assertEqual(msg_headers_only['From'], 'alice@lacre.io')
+        self.assertEqual(msg_headers_only.get_body().as_bytes(), rawmsg)
+        self.assertEqual(msg_headers_only.get_payload(), 'SGVsbG8sIFdvcmxkIQo=\r\n')
+
+    def test_headersonly_multipart_mixed(self):
+        rawmsg = b"From: eva@lacre.io\r\n" \
+          + b"Content-Type: multipart/mixed; boundary=XXXXXXXX\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX--\r\n"
+
+        message_body = "--XXXXXXXX\r\n" \
+          + "Content-Type: application/octet-stream\r\n" \
+          + "Content-Transfer-Encoding: base64\r\n" \
+          + "\r\n" \
+          + "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
+          + "\r\n" \
+          + "--XXXXXXXX\r\n" \
+          + "Content-Type: application/octet-stream\r\n" \
+          + "Content-Transfer-Encoding: base64\r\n" \
+          + "\r\n" \
+          + "SGVsbG8sIFdvcmxkIQo=\r\n" \
+          + "\r\n" \
+          + "--XXXXXXXX--\r\n"
+
+        from email.parser import BytesHeaderParser
+        msg_headers_only = BytesHeaderParser(policy=SMTPUTF8).parsebytes(rawmsg)
+
+        self.assertEqual(msg_headers_only['From'], 'eva@lacre.io')
+        self.assertIsNone(msg_headers_only.get_body())
+        self.assertEqual(msg_headers_only.get_payload(), message_body)
+        self.assertRaises(KeyError, lambda: msg_headers_only.get_content())
+
+    def test_headersonly_multipart_alternative(self):
+        rawmsg = b"From: eva@lacre.io\r\n" \
+          + b"Content-Type: multipart/alternative; boundary=XXXXXXXX\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX\r\n" \
+          + b"Content-Type: application/octet-stream\r\n" \
+          + b"Content-Transfer-Encoding: base64\r\n" \
+          + b"\r\n" \
+          + b"SGVsbG8sIFdvcmxkIQo=\r\n" \
+          + b"\r\n" \
+          + b"--XXXXXXXX--\r\n"
+
+        message_body = "--XXXXXXXX\r\n" \
+          + "Content-Type: application/octet-stream\r\n" \
+          + "Content-Transfer-Encoding: base64\r\n" \
+          + "\r\n" \
+          + "VGVzdCBtZXNzYWdlIGZyb20gQWxpY2UgdG8gQm9iLgo=\r\n" \
+          + "\r\n" \
+          + "--XXXXXXXX\r\n" \
+          + "Content-Type: application/octet-stream\r\n" \
+          + "Content-Transfer-Encoding: base64\r\n" \
+          + "\r\n" \
+          + "SGVsbG8sIFdvcmxkIQo=\r\n" \
+          + "\r\n" \
+          + "--XXXXXXXX--\r\n"
+
+        from email.parser import BytesHeaderParser
+        msg_headers_only = BytesHeaderParser(policy=SMTPUTF8).parsebytes(rawmsg)
+
+        self.assertEqual(msg_headers_only['From'], 'eva@lacre.io')
+        self.assertIsNone(msg_headers_only.get_body())
+        self.assertEqual(msg_headers_only.get_payload(), message_body)
+        self.assertRaises(KeyError, lambda: msg_headers_only.get_content())
+
 
 class EmailTest(unittest.TestCase):
     def test_boundary_generated_after_as_string_call(self):
