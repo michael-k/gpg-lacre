@@ -15,11 +15,16 @@ There are 3 operations available:
 
 import logging
 import lacre.core as core
-from email.message import Message
+from email.message import Message, EmailMessage
+from email.parser import BytesHeaderParser
 from email.policy import SMTP, SMTPUTF8
 
 
 LOG = logging.getLogger(__name__)
+
+
+def parse_headers(message: bytes) -> EmailMessage:
+    return BytesHeaderParser(policy=SMTPUTF8).parsebytes(message)
 
 
 class MailSerialisationException(BaseException):

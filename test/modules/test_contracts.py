@@ -242,6 +242,7 @@ class EmailParsingTest(unittest.TestCase):
         self.assertIsNone(msg_headers_only.get_body())
         self.assertEqual(msg_headers_only.get_payload(), message_body)
         self.assertRaises(KeyError, lambda: msg_headers_only.get_content())
+        self.assertFalse(msg_headers_only.is_multipart())
 
     def test_headersonly_multipart_alternative(self):
         rawmsg = b"From: eva@lacre.io\r\n" \
@@ -282,6 +283,7 @@ class EmailParsingTest(unittest.TestCase):
         self.assertIsNone(msg_headers_only.get_body())
         self.assertEqual(msg_headers_only.get_payload(), message_body)
         self.assertRaises(KeyError, lambda: msg_headers_only.get_content())
+        self.assertFalse(msg_headers_only.is_multipart())
 
 
 class EmailTest(unittest.TestCase):
