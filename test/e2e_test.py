@@ -101,7 +101,7 @@ class SimpleMailFilterE2ETest(unittest.TestCase):
         cls._e2e_config_path = os.path.join(os.getcwd(), CONFIG_FILE)
 
         # This environment variable is set in Makefile.
-        cls._python_path = os.getenv('PYTHON', 'python3')
+        cls._python_path = os.getenv('PYTHON', 'python')
 
         _write_test_config(cls._e2e_config_path,
                            port				= cls._e2e_config.get("relay", "port"),
