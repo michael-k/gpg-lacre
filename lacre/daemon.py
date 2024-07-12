@@ -23,6 +23,7 @@ import lacre.core as gate
 import lacre.keyring as kcache
 import lacre.transport as xport
 from lacre.mailop import KeepIntact, MailSerialisationException
+from lacre.lazymessage import LazyMessage
 
 
 class MailEncryptionProxy:
@@ -37,16 +38,17 @@ class MailEncryptionProxy:
         with time_logger('Message delivery', LOG):
             try:
                 keys = self._keyring.freeze_identities()
+                lmessage = LazyMessage(envelope.rcpt_tos, lambda: envelope.original_content)
                 message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
 
                 if message.defects:
                     LOG.warning("Issues found: %s", repr(message.defects))
 
                 send = xport.SendFrom(envelope.mail_from)
-                for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
+                for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys, lmessage):
                     LOG.debug(f"Sending mail via {operation!r}")
                     try:
-                        new_message = operation.perform(message)
+                        new_message = operation.perform(message, lmessage)
                         send(new_message, operation.recipients())
                     except (EncryptionException, MailSerialisationException) as e:
                         # If the message can't be encrypted or serialised to a
@@ -57,7 +59,7 @@ class MailEncryptionProxy:
 
             except xport.TransientFailure:
                 LOG.info('Bouncing message')
-                return xport.RESULT_ABORT
+                return xport.RESULT_TRANS_FAIL
 
             except xport.PermanentFailure:
                 LOG.exception('Permanent failure')
@@ -69,11 +71,11 @@ class MailEncryptionProxy:
                 else:
                     LOG.exception('Unexpected exception caught, bouncing message')
 
-                return xport.RESULT_ABORT
+                return xport.RESULT_TRANS_FAIL
 
         return xport.RESULT_OK
 
-    def _send_unencrypted(self, operation, envelope, send: xport.SendFrom):
+    def _send_unencrypted(self, operation, envelope: Envelope, send: xport.SendFrom):
         # Do not parse and re-generate the message, just send it as it is.
         send(envelope.original_content, operation.recipients())
 

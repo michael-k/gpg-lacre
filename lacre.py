@@ -32,6 +32,7 @@ lacre.init_logging(conf.get_item('logging', 'config'))
 
 # This has to be executed *after* logging initialisation.
 import lacre.core as core
+from lacre.lazymessage import LazyMessage
 
 LOG = logging.getLogger('lacre.py')
 
@@ -45,14 +46,19 @@ def main():
             sys.exit(lacre.EX_CONFIG)
 
         delivered = False
-        try:
-            # Read e-mail from stdin, parse it
-            raw = sys.stdin.read()
-            raw_message = email.message_from_string(raw, policy=SMTPUTF8)
-            from_addr = raw_message['From']
-            # Read recipients from the command-line
-            to_addrs = sys.argv[1:]
+        raw_message = None
 
+        # Read recipients from the command-line
+        to_addrs = sys.argv[1:]
+
+        # Read e-mail from stdin, parse it
+        raw = sys.stdin.read()
+        raw_message = email.message_from_string(raw, policy=SMTPUTF8)
+        from_addr = raw_message['From']
+
+        lmessage = LazyMessage(to_addrs, lambda: raw_message)
+
+        try:
             # Let's start
             core.deliver_message(raw_message, from_addr, to_addrs)
             delivered = True
@@ -64,6 +70,7 @@ def main():
             # some silly message-encoding issue that shouldn't bounce the
             # message, we just try recoding the message body and delivering it.
             try:
+                from_addr = raw_message['From']
                 core.failover_delivery(raw_message, to_addrs, from_addr)
             except:
                 LOG.exception('Failover delivery failed too')
