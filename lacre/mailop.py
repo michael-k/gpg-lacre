@@ -134,7 +134,7 @@ class KeepIntact(MailOperation):
     def perform(self, message: Message, lmessage: LazyMessage) -> bytes:
         """Return MESSAGE unmodified."""
         try:
-            return message.as_bytes(policy=SMTPUTF8)
+            return lmessage.get_original_content()
         except (IndexError, UnicodeEncodeError, ValueError) as e:
             raise MailSerialisationException(e)
 
