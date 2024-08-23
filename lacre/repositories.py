@@ -1,5 +1,7 @@
 """Lacre identity and key repositories."""
 
+from datetime import datetime, timedelta
+
 from sqlalchemy import create_engine, select, delete, and_, func
 from sqlalchemy.exc import OperationalError
 import logging
@@ -78,6 +80,7 @@ class IdentityRepository(KeyRing):
         LOG.debug('Registering identity: %s -- %s', insq, insq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(insq)
+            conn.commit()
 
     def _update(self, email, fprint):
         upq = self._identities.update() \
@@ -87,6 +90,7 @@ class IdentityRepository(KeyRing):
         LOG.debug('Updating identity: %s -- %s', upq, upq.compile().params)
         with self._engine.connect() as conn:
             conn.execute(upq)
+            conn.commit()
 
     def delete(self, email):
         delq = delete(self._identities).where(self._identities.c.email == email)
@@ -94,6 +98,7 @@ class IdentityRepository(KeyRing):
 
         with self._engine.connect() as conn:
             conn.execute(delq)
+            conn.commit()
 
     def delete_all(self):
         LOG.warn('Deleting all identities from the database')
@@ -101,6 +106,7 @@ class IdentityRepository(KeyRing):
         delq = delete(self._identities)
         with self._engine.connect() as conn:
             conn.execute(delq)
+            conn.commit()
 
     def freeze_identities(self) -> KeyCache:
         """Return a static, async-safe copy of the identity map.
@@ -171,6 +177,22 @@ class KeyConfirmationQueue:
         with self._engine.connect() as conn:
             return [e for e in conn.execute(seldel)]
 
+    def delete_expired_queue_items(self, older_than: datetime):
+        """Remove keys that have been in queue before `older_than`."""
+        delq = delete(self._keys) \
+            .where(
+                and_(
+                     self._keys.c.time < older_than,
+                     # We only want to delete keys that haven't been confirmed.
+                     self._keys.c.confirm != db.CO_CONFIRMED
+                   )
+                )
+        LOG.debug('Deleting queue items older than %s: %s', repr(older_than), delq)
+
+        with self._engine.connect() as conn:
+            conn.execute(delq)
+            conn.commit()
+
     def delete_keys(self, row_id, /, email=None):
         """Remove key from the database."""
         if email is not None:
@@ -183,6 +205,7 @@ class KeyConfirmationQueue:
         with self._engine.connect() as conn:
             LOG.debug('Deleting public keys associated with confirmed email: %s', delq)
             conn.execute(delq)
+            conn.commit()
 
     def delete_key_by_email(self, email):
         """Remove keys linked to the given email from the database."""
@@ -191,6 +214,7 @@ class KeyConfirmationQueue:
         LOG.debug('Deleting email for: %s', email)
         with self._engine.connect() as conn:
             conn.execute(delq)
+            conn.commit()
 
     def mark_accepted(self, row_id):
         modq = self._keys.update().where(self._keys.c.id == row_id).values(status=db.ST_IMPORTED)
@@ -198,3 +222,4 @@ class KeyConfirmationQueue:
 
         with self._engine.connect() as conn:
             conn.execute(modq)
+            conn.commit()

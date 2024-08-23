@@ -133,6 +133,10 @@ pooling_mode = optimistic
 # made and closed after use, to avoid pool growth and connection rejections.
 #max_overflow = 10
 
+# Number of hours we will wait for the user to confirm their email.  Cron-job
+# will delete items older than this number of hours.  Default: 1h.
+#max_queue_hours = 1
+
 [enc_keymap]
 # You can find these by running the following command:
 #	gpg --list-keys --keyid-format long user@example.com

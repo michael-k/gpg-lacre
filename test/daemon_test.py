@@ -23,15 +23,19 @@ import subprocess
 import os
 import time
 import unittest
+from typing import Dict
 
 
-def _spawn(cmd):
+def _spawn(cmd, *, env_add: Dict = None):
     env_dict = {
         "PATH": os.getenv("PATH"),
         "PYTHONPATH": os.getcwd(),
         "LANG": 'en_US.UTF-8',
         "LACRE_CONFIG": "test/lacre-daemon.conf"
         }
+    if env_add:
+        env_dict.update(env_add)
+
     logging.debug(f"Spawning command: {cmd} with environment: {env_dict!r}")
     return subprocess.Popen(cmd,
                             stdin=None,
@@ -45,7 +49,8 @@ def _interrupt(proc):
 
 def _send(host, port, mail_from, mail_to, message):
     logging.debug(f"Sending message to {host}:{port}")
-    p = _spawn([os.getenv("PYTHON") or "python",
+    python = os.getenv("PYTHON") or "python"
+    p = _spawn([python,
         "test/utils/sendmail.py",
         "-f", mail_from,
         "-t", mail_to,
@@ -83,7 +88,7 @@ class AdvancedMailFilterE2ETest(unittest.TestCase):
         python = os.getenv("PYTHON", "python")
 
         logging.info('Starting the server...')
-        cls.server = _spawn([python, '-m', 'lacre.daemon'])
+        cls.server = _spawn([python, '-m', 'lacre.daemon'], env_add={'SQLALCHEMY_WARN_20': '1'})
 
     @classmethod
     def tearDownClass(cls):

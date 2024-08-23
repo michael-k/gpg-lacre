@@ -1,0 +1,76 @@
+digraph key_lifecycle {
+    node [fontname="Helvetica,Arial,sans-serif" fontsize=12 shape=Mrecord]
+    edge [fontname="Helvetica,Arial,sans-serif" fontsize=10]
+
+    start [label="" shape=circle]
+    end [label="" shape=circle]
+
+    // An ASCII-armoured key is stored in lacre_keys table with:
+    //
+    // lacre_keys.confirm = <random string>
+    // lacre_keys.status  = 0 (default value)
+    submitted [label="Submitted"]
+
+    // User has confirmed their email.
+    //
+    // lacre_keys.confirm = ''
+    confirmed [label="Email confirmed" color=green4]
+
+    // The key has been imported into GnuPG keyring and an identity has been
+    // created in lacre_identities table.
+    //
+    // lacre_keys.status = 1
+    imported [label="Imported" color=green4]
+
+    // Any old key for this email has been deleted.
+    deleted [label="Previous key\ndeleted"]
+
+    // When a key expires, we only fail to encrypt at the moment.
+    //
+    // See https://git.disroot.org/Disroot/gpg-lacre/issues/148
+    expired [label="Expired" color=red]
+
+    // A key may end up being non-usable in several different ways and this is
+    // a catch-all node to represent them.
+    //
+    // - User hasn't confirmed their email.
+    // - Provided key's email didn't match the one provided in submission form.
+    rejected [label="Key not used,\nremoved from database" color=brown]
+
+    // User submits ASCII-armoured OpenPGP key.
+    start -> submitted [label="user action:\nkey submission" color=green4]
+
+    // The user has clicked the confirmation link.
+    //
+    // - lacre_keys.confirm = ''
+    submitted -> confirmed [label="user action:\nemail confirmation" color=green4]
+
+    // Enough time has passed since submission that we decide to drop the key
+    // from the queue.
+    submitted -> rejected [label="confirmation timed out\nno user action" color=brown]
+
+    // A confirmed key is imported:
+    // - import into GnuPG keyring;
+    // - mark key as accepted (lacre_keys.status = 1);
+    // - update identity database;
+    // - send notification.
+    confirmed -> imported [label="import\n[non-empty key]" color=green4]
+
+    // Empty key is imported.
+    //
+    // Effectively this means key removal and disabling encryption.
+    confirmed -> deleted [label="import\n[empty key]" color=green4]
+    deleted -> end
+
+    // XXX: Import of revokation keys isn't implemented yet.
+    confirmed -> deleted [label="import\n[revokation key]\n(not implemented)" color=gray fontcolor=gray]
+
+    // Key validation fails, the key is not imported.
+    confirmed -> rejected [label="invalid key" color=brown]
+
+    // We don't explicitly make keys expired, but when they expire GnuPG
+    // refuses to encrypt payloads.
+    imported -> expired [label="expiry" color=red fontcolor=red]
+
+    rejected -> end
+}

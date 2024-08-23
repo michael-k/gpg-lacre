@@ -6,6 +6,7 @@ configuration.
 
 from enum import Enum, auto
 from configparser import RawConfigParser
+from collections import namedtuple
 
 import os
 
@@ -128,9 +129,11 @@ def validate_config(*, additional=None):
 # High level access to configuration.
 #
 
-def relay_params():
-    """Return a (HOST, PORT) tuple identifying the mail relay."""
-    return (cfg["relay"]["host"], int(cfg["relay"]["port"]))
+Host = namedtuple('Host', ['name', 'port'])
+
+def relay_params() -> Host:
+    """Return a Host named tuple identifying the mail relay."""
+    return Host(name = cfg["relay"]["host"], port = int(cfg["relay"]["port"]))
 
 
 def daemon_params():

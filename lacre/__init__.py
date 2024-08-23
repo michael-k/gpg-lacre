@@ -43,7 +43,9 @@ EX_CONFIG = 78
 def init_logging(config_filename):
     if config_filename is not None:
         logging.config.fileConfig(config_filename)
+        logging.captureWarnings(True)
         logging.info('Configured from %s', config_filename)
     else:
         logging.config.dictConfig(FAIL_OVER_LOGGING_CONFIG)
+        logging.captureWarnings(True)
         logging.warning('Lacre logging configuration missing, using syslog as default')

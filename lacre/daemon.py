@@ -23,6 +23,7 @@ import lacre.core as gate
 import lacre.keyring as kcache
 import lacre.transport as xport
 from lacre.mailop import KeepIntact, MailSerialisationException
+from lacre.lazymessage import LazyMessage
 
 
 class MailEncryptionProxy:
@@ -37,37 +38,44 @@ class MailEncryptionProxy:
         with time_logger('Message delivery', LOG):
             try:
                 keys = self._keyring.freeze_identities()
+                lmessage = LazyMessage(envelope.rcpt_tos, lambda: envelope.original_content)
                 message = email.message_from_bytes(envelope.original_content, policy=SMTPUTF8)
 
                 if message.defects:
-                    LOG.warning("Issues found: %d; %s", len(message.defects), repr(message.defects))
+                    LOG.warning("Issues found: %s", repr(message.defects))
 
                 send = xport.SendFrom(envelope.mail_from)
-                for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys):
+                for operation in gate.delivery_plan(envelope.rcpt_tos, message, keys, lmessage):
                     LOG.debug(f"Sending mail via {operation!r}")
                     try:
-                        new_message = operation.perform(message)
+                        new_message = operation.perform(message, lmessage)
                         send(new_message, operation.recipients())
-                    except (EncryptionException, MailSerialisationException, UnicodeEncodeError):
-                        # If the message can't be encrypted, deliver cleartext.
-                        LOG.exception('Unable to encrypt message, delivering in cleartext')
-                        if not isinstance(operation, KeepIntact):
-                            self._send_unencrypted(operation, envelope, send)
-                        else:
-                            LOG.exception('Cannot perform: %s', operation)
-                            raise
+                    except (EncryptionException, MailSerialisationException) as e:
+                        # If the message can't be encrypted or serialised to a
+                        # stream of bytes, deliver original payload in
+                        # cleartext.
+                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
+                        self._send_unencrypted(operation, envelope, send)
+
+            except xport.TransientFailure:
+                LOG.info('Bouncing message')
+                return xport.RESULT_TRANS_FAIL
+
+            except xport.PermanentFailure:
+                LOG.exception('Permanent failure')
+                return xport.RESULT_PERM_FAIL
 
             except:
-                LOG.exception('Unexpected exception caught, bouncing message')
-
                 if conf.should_log_headers():
-                    LOG.error('Erroneous message headers: %s', self._beginning(envelope))
+                    LOG.exception('Unexpected exception caught, bouncing message. Erroneous message headers: %s', self._beginning(envelope))
+                else:
+                    LOG.exception('Unexpected exception caught, bouncing message')
 
-                return xport.RESULT_ERRORR
+                return xport.RESULT_TRANS_FAIL
 
         return xport.RESULT_OK
 
-    def _send_unencrypted(self, operation, envelope, send: xport.SendFrom):
+    def _send_unencrypted(self, operation, envelope: Envelope, send: xport.SendFrom):
         # Do not parse and re-generate the message, just send it as it is.
         send(envelope.original_content, operation.recipients())
 
@@ -80,9 +88,6 @@ class MailEncryptionProxy:
         end = min(limit, 2560)
         return e.original_content[0:end]
 
-    def _seconds_between(self, start_ms, end_ms) -> float:
-        return (end_ms - start_ms) * 1000
-
 
 def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5):
     proxy = MailEncryptionProxy(keys)
@@ -90,7 +95,10 @@ def _init_controller(keys: kcache.KeyRing, max_body_bytes=None, tout: float = 5)
     LOG.info(f"Initialising a mail Controller at {host}:{port}")
     return Controller(proxy, hostname=host, port=port,
                       ready_timeout=tout,
-                      data_size_limit=max_body_bytes)
+                      data_size_limit=max_body_bytes,
+                      # Do not decode data into str as we only operate on raw
+                      # data available via Envelope.original_content.
+                      decode_data=False)
 
 
 def _validate_config():

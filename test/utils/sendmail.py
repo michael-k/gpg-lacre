@@ -2,6 +2,7 @@ import logging
 import smtplib
 import sys
 import getopt
+from contextlib import contextmanager
 from email import message_from_binary_file
 from email.policy import SMTPUTF8
 
@@ -16,11 +17,20 @@ def _load_message(name):
         return message_from_binary_file(f, policy=SMTPUTF8)
 
 
+@contextmanager
+def smtp_connection(host, port):
+    smtp = smtplib.SMTP(host, port)
+    try:
+        yield smtp
+    finally:
+        smtp.close()
+
+
 def _send_message(host, port, from_addr, recipients, message):
     logging.info(f"From {from_addr} to {recipients} at {host}:{port}")
     try:
-        smtp = smtplib.SMTP(host, port)
-        return smtp.sendmail(from_addr, recipients, message.as_bytes())
+        with smtp_connection(host, port) as smtp:
+            return smtp.sendmail(from_addr, recipients, message.as_bytes())
     except smtplib.SMTPDataError as e:
         logging.error(f"Couldn't deliver message. Got error: {e}")
         return None
@@ -37,12 +47,12 @@ def _send_message(host, port, from_addr, recipients, message):
 # messages.
 def _send_bytes(host: str, port, from_addr: str, recipients, message: bytes):
     try:
-        smtp = smtplib.SMTP(host, port)
-        smtp.ehlo_or_helo_if_needed()
-        smtp.mail(from_addr)
-        for r in recipients:
-            smtp.rcpt(r)
-        smtp.data(message)
+        with smtp_connection(host, port) as smtp:
+            smtp.ehlo_or_helo_if_needed()
+            smtp.mail(from_addr)
+            for r in recipients:
+                smtp.rcpt(r)
+            smtp.data(message)
     except:
         logging.exception('Unexpected exception was thrown')
 

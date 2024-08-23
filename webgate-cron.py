@@ -20,10 +20,12 @@
 #
 
 import sys
+from datetime import datetime
 import logging
 import lacre
 import lacre.config as conf
 from lacre.notify import notify
+from lacre.keymgmt import calculate_expiry_date
 
 # Read configuration from /etc/lacre.conf
 conf.load_config()
@@ -56,7 +58,7 @@ def import_key(key_dir, armored_key, key_id, email, key_queue, identities):
 
 def import_failed(key_id, email, key_queue):
     key_queue.delete_keys(key_id)
-    LOG.warning('Import confirmation failed: %s', email)
+    LOG.warning('Key confirmation failed: %s', email)
 
     if conf.flag_enabled('cron', 'send_email'):
         notify("PGP key registration failed", "registrationError.md", email)
@@ -64,17 +66,16 @@ def import_failed(key_id, email, key_queue):
 
 def delete_key(key_id, email, key_queue):
     # delete key so we don't continue processing it
-    LOG.debug('Empty key received, just deleting')
+    LOG.debug('Empty key received, deleting known key from: %s', email)
 
-    key_queue.delete_keys(row_id)
+    key_queue.delete_keys(key_id, email)
     if conf.flag_enabled('cron', 'send_email'):
         notify("PGP key deleted", "keyDeleted.md", email)
 
 
 def cleanup(key_dir, key_queue):
     """Delete keys and queue entries."""
-
-    LOG.info('Cleaning up after a round of key confirmation')
+    LOG.debug('Removing no longer needed keys from queue')
     for email, row_id in key_queue.fetch_keys_to_delete():
         LOG.debug('Removing key from keyring: %s', email)
         GnuPG.delete_key(key_dir, email)
@@ -83,6 +84,9 @@ def cleanup(key_dir, key_queue):
         key_queue.delete_keys(row_id)
 
         LOG.info('Deleted key for: %s', email)
+
+    expiry_date = calculate_expiry_date(datetime.now())
+    key_queue.delete_expired_queue_items(expiry_date)
 
 
 _validate_config()

@@ -41,6 +41,7 @@ import lacre.recipients as recpt
 import lacre.smime as smime
 from lacre.transport import send_msg, register_sender, SendFrom
 from lacre.mailop import KeepIntact, InlineOpenPGPEncrypt, MimeOpenPGPEncrypt, MailSerialisationException
+from lacre.lazymessage import LazyMessage
 
 
 LOG = logging.getLogger(__name__)
@@ -117,7 +118,10 @@ def _sort_gpg_recipients(gpg_to) -> Tuple[recpt.RecipientList, recpt.RecipientLi
     return mime, inline
 
 
-def _gpg_encrypt_copy(message: EmailMessage, keys, recipients, encrypt_f):
+def _gpg_encrypt_copy(message: EmailMessage, keys, recipients, encrypt_f, lmessage: LazyMessage = None) -> EmailMessage:
+    if lmessage:
+        message = lmessage.get_message()
+
     msg_copy = copy.deepcopy(message)
     _customise_headers(msg_copy)
     encrypted_payloads = encrypt_f(msg_copy, keys)
@@ -125,8 +129,8 @@ def _gpg_encrypt_copy(message: EmailMessage, keys, recipients, encrypt_f):
     return msg_copy
 
 
-def _gpg_encrypt_to_bytes(message: EmailMessage, keys, recipients, encrypt_f) -> bytes:
-    msg_copy = _gpg_encrypt_copy(message, keys, recipients, encrypt_f)
+def _gpg_encrypt_to_bytes(message: EmailMessage, keys, recipients, encrypt_f, lmessage) -> bytes:
+    msg_copy = _gpg_encrypt_copy(message, keys, recipients, encrypt_f, lmessage)
     try:
         return msg_copy.as_bytes(policy=SMTPUTF8)
     except IndexError:
@@ -148,7 +152,9 @@ def _customise_headers(message: EmailMessage):
         message['X-Lacre'] = 'Encrypted by Lacre'
 
 
-def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline):
+def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline, lmessage: LazyMessage = None):
+    if lmessage:
+        message = lmessage.get_message()
 
     # This breaks cascaded MIME messages. Blame PGP/INLINE.
     encrypted_payloads = list()
@@ -164,7 +170,7 @@ def _encrypt_all_payloads_inline(message: EmailMessage, gpg_to_cmdline):
     return encrypted_payloads
 
 
-def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline):
+def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline, lmessage: LazyMessage = None):
     # Convert a plain text email into PGP/MIME attachment style.  Modeled after enigmail.
     pgp_ver_part = MIMEPart()
     pgp_ver_part.set_content('Version: 1' + text.EOL_S)
@@ -177,6 +183,9 @@ def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline):
     encrypted_part.set_param('OpenPGP encrypted message', "", 'Content-Description')
     encrypted_part.set_param('inline', "",                'Content-Disposition')
     encrypted_part.set_param('filename', "encrypted.asc", 'Content-Disposition')
+
+    if lmessage:
+        message = lmessage.get_message()
 
     message.preamble = "This is an OpenPGP/MIME encrypted message (RFC 2440 and 3156)"
 
@@ -201,12 +210,14 @@ def _encrypt_all_payloads_mime(message: EmailMessage, gpg_to_cmdline):
     return [pgp_ver_part, _encrypt_payload(encrypted_part, gpg_to_cmdline, check_nested)]
 
 
-def _rewrap_payload(message: EmailMessage) -> MIMEPart:
+def _rewrap_payload(message: EmailMessage, lmessage: LazyMessage = None) -> MIMEPart:
     # In PGP/MIME (RFC 3156), the payload has to be a valid MIME entity.  In
     # other words, we need to wrap text/* message's payload in a new MIME
     # entity.
 
     wrapper = MIMEPart(policy=SMTPUTF8)
+    if lmessage:
+        message = lmessage.get_message()
     content = message.get_content()
     wrapper.set_content(content)
 
@@ -234,7 +245,9 @@ def _set_type_and_boundary(message: EmailMessage, boundary):
     message.set_param('boundary', boundary)
 
 
-def _encrypt_payload(payload: EmailMessage, recipients, check_nested=True, **kwargs):
+def _encrypt_payload(payload: EmailMessage, recipients, check_nested=True, lmessage: LazyMessage = None, **kwargs):
+    if lmessage:
+        payload = lmessage.get_message()
     raw_payload = payload.get_payload(decode=True)
     LOG.debug('About to encrypt raw payload: %s', raw_payload)
     LOG.debug('Original message: %s', payload)
@@ -331,7 +344,9 @@ def failover_delivery(message: EmailMessage, recipients, from_address):
         LOG.warning('No failover strategy, giving up')
 
 
-def _is_encrypted(raw_message: EmailMessage):
+def _is_encrypted(raw_message: EmailMessage, lmessage: LazyMessage = None):
+    if lmessage:
+        raw_message = lmessage.get_message()
     if raw_message.get_content_type() == 'multipart/encrypted':
         return True
 
@@ -342,8 +357,11 @@ def _is_encrypted(raw_message: EmailMessage):
     return text.is_message_pgp_inline(first_part)
 
 
-def delivery_plan(recipients, message: EmailMessage, key_cache: kcache.KeyCache):
+def delivery_plan(recipients, message: EmailMessage, key_cache: kcache.KeyCache, lmessage: LazyMessage = None):
     """Generate a sequence of delivery strategies."""
+    if lmessage:
+        message = lmessage.get_message()
+
     if _is_encrypted(message):
         LOG.debug('Message is already encrypted: %s', message)
         return [KeepIntact(recipients)]

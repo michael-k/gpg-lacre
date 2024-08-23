@@ -101,6 +101,8 @@ def _serve(port) -> bytes:
 
     logging.debug('Received %d bytes of data', len(message))
 
+    s.close()
+
     # Trim EOM marker as we're only interested in the message body.
     return message[:-len(EOM)]
 

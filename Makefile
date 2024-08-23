@@ -1,5 +1,6 @@
 .POSIX:
 .PHONY: test e2etest unittest crontest daemontest pre-clean clean restore-keyhome
+.SUFFIXES: .gv .png
 
 #
 # On systems where Python 3.x binary has a different name, just
@@ -12,6 +13,8 @@
 #
 PYTHON = python
 
+GRAPHVIZ = dot
+
 #
 # SQLite database used during tests
 #
@@ -21,9 +24,19 @@ PYTHON = python
 TEST_DB = test/lacre.db
 
 #
+# List of graph files
+#
+GRAPHS = doc/key-lifecycle.png
+
+#
 # Main goal to run all tests.
 #
 test: e2etest daemontest unittest crontest
+
+#
+# Build graphviz diagrams.
+#
+doc: ${GRAPHS}
 
 #
 # Run a set of end-to-end tests.
@@ -82,3 +95,7 @@ test/logs:
 
 clean: pre-clean clean-db
 	rm -rfv test/tmp test/logs
+
+# Convert dot source to PNG image.
+.gv.png:
+	$(GRAPHVIZ) -Tpng $< > ${<:S/.gv/.png/}
