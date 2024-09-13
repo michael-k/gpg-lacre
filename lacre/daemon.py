@@ -54,7 +54,7 @@ class MailEncryptionProxy:
                         # If the message can't be encrypted or serialised to a
                         # stream of bytes, deliver original payload in
                         # cleartext.
-                        LOG.exception('Unable to encrypt message, delivering in cleartext: %s')
+                        LOG.exception('Unable to encrypt message, delivering in cleartext')
                         self._send_unencrypted(operation, envelope, send)
 
             except xport.TransientFailure:
