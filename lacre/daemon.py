@@ -54,7 +54,7 @@ class MailEncryptionProxy:
                         # If the message can't be encrypted or serialised to a
                         # stream of bytes, deliver original payload in
                         # cleartext.
-                        LOG.error('Unable to encrypt message, delivering in cleartext: %s', e)
+                        LOG.exception('Unable to encrypt message, delivering in cleartext')
                         self._send_unencrypted(operation, envelope, send)
 
             except xport.TransientFailure:
@@ -71,13 +71,17 @@ class MailEncryptionProxy:
                 else:
                     LOG.exception('Unexpected exception caught, bouncing message')
 
-                return xport.RESULT_TRANS_FAIL
+                return xport.RESULT_PERM_FAIL
 
         return xport.RESULT_OK
 
     def _send_unencrypted(self, operation, envelope: Envelope, send: xport.SendFrom):
         # Do not parse and re-generate the message, just send it as it is.
-        send(envelope.original_content, operation.recipients())
+        try:
+            send(envelope.original_content, operation.recipients())
+        except:
+            LOG.exception('Unencrypted delivery failed, returning PERMANENT FAILURE to sender')
+            raise xport.PermanentFailure()
 
     def _beginning(self, e: Envelope) -> bytes:
         double_eol_pos = e.original_content.find(DOUBLE_EOL_BYTES)

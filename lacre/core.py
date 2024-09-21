@@ -133,8 +133,8 @@ def _gpg_encrypt_to_bytes(message: EmailMessage, keys, recipients, encrypt_f, lm
     msg_copy = _gpg_encrypt_copy(message, keys, recipients, encrypt_f, lmessage)
     try:
         return msg_copy.as_bytes(policy=SMTPUTF8)
-    except IndexError:
-        raise MailSerialisationException()
+    except IndexError as ie:
+        raise MailSerialisationException(ie)
 
 
 def _gpg_encrypt_to_str(message: EmailMessage, keys, recipients, encrypt_f) -> str:
