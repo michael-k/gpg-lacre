@@ -52,15 +52,15 @@ def main():
         to_addrs = sys.argv[1:]
 
         # Read e-mail from stdin, parse it
-        raw = sys.stdin.read()
-        raw_message = email.message_from_string(raw, policy=SMTPUTF8)
+        raw = sys.stdin.buffer.read()
+        raw_message = email.message_from_bytes(raw, policy=SMTPUTF8)
         from_addr = raw_message['From']
 
-        lmessage = LazyMessage(to_addrs, lambda: raw_message)
+        lmessage = LazyMessage(to_addrs, lambda: raw)
 
         try:
             # Let's start
-            core.deliver_message(raw_message, from_addr, to_addrs)
+            core.deliver_message(lmessage, from_addr, to_addrs)
             delivered = True
         except:
             LOG.exception('Could not handle message')
@@ -71,7 +71,7 @@ def main():
             # message, we just try recoding the message body and delivering it.
             try:
                 from_addr = raw_message['From']
-                core.failover_delivery(raw_message, to_addrs, from_addr)
+                core.failover_delivery(lmessage, to_addrs, from_addr)
             except:
                 LOG.exception('Failover delivery failed too')
 
