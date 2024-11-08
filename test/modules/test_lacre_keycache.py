@@ -18,3 +18,12 @@ class LacreKeyCacheTest(unittest.TestCase):
 
         self.assertTrue(kc.has_email('bob@example.com'))
         self.assertFalse(kc.has_email('dave@example.com'))
+
+    def test_case_insensitivity(self):
+        kc = KeyCache({
+                      'FINGERPRINT': 'alice@example.com',
+                      'OTHERPRINT': 'bob@example.com',
+                      })
+
+        self.assertTrue(kc.has_email('Alice@example.com'))
+        self.assertTrue(kc.has_email('BOB@EXAMPLE.COM'))
