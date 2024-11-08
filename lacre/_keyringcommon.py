@@ -11,7 +11,7 @@ class KeyCache:
 
         With keyring_dir given, set location of the directory from which keys should be loaded.
         """
-        self._keys = keys
+        self._keys = { fpr: eml.upper() for (fpr, eml) in keys.items() }
 
     def __getitem__(self, fingerpring):
         """Look up email assigned to the given fingerprint."""
@@ -29,7 +29,7 @@ class KeyCache:
 
     def has_email(self, email):
         """Check if cache contains a key assigned to the given email."""
-        return email in self._keys.values()
+        return email.upper() in self._keys.values()
 
     def __repr__(self):
         """Return text representation of this object."""
