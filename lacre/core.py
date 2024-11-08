@@ -323,25 +323,14 @@ def _recode(m: EmailMessage):
     m.set_content(payload)
 
 
-def failover_delivery(message: EmailMessage, recipients, from_address):
+def failover_delivery(lmessage: LazyMessage, recipients, from_address):
     """Try delivering message just one last time."""
     LOG.debug('Failover delivery')
 
     send = SendFrom(from_address)
-    if message.get_content_maintype() == 'text':
-        LOG.debug('Flat text message, adjusting coding')
-        _recode(message)
-        b = message.as_bytes(policy=SMTPUTF8)
-        send(b, recipients)
-    elif message.get_content_maintype() == 'multipart':
-        LOG.debug('Multipart message, adjusting coding of text entities')
-        for part in message.iter_parts():
-            if part.get_content_maintype() == 'text':
-                _recode(part)
-        b = message.as_bytes(policy=SMTPUTF8)
-        send(b, recipients)
-    else:
-        LOG.warning('No failover strategy, giving up')
+    orig = lmessage.get_original_content()
+
+    send(orig, recipients)
 
 
 def _is_encrypted(raw_message: EmailMessage, lmessage: LazyMessage = None):
@@ -383,10 +372,12 @@ def delivery_plan(recipients, message: EmailMessage, key_cache: kcache.KeyCache,
     return plan
 
 
-def deliver_message(raw_message: EmailMessage, from_address, to_addrs):
+def deliver_message(message: LazyMessage, from_address, to_addrs):
     """Send RAW_MESSAGE to all TO_ADDRS using the best encryption method available."""
     # Ugly workaround to keep the code working without too many changes.
     register_sender(from_address)
+
+    raw_message = message.get_message()
 
     sanitize = text.choose_sanitizer(conf.get_item('default', 'mail_case_insensitive'))
     recipients_left = [sanitize(recipient) for recipient in to_addrs]
@@ -413,5 +404,5 @@ def deliver_message(raw_message: EmailMessage, from_address, to_addrs):
         return
 
     # Send out mail to recipients which are left
-    LOG.debug("Sending the rest as text/plain")
+    LOG.debug("Sending the rest as cleartext")
     send(raw_message.as_bytes(policy=SMTPUTF8), recipients_left)

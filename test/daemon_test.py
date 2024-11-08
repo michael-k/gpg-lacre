@@ -110,7 +110,7 @@ class AdvancedMailFilterE2ETest(unittest.TestCase):
                 self._execute_case(self.config, case_name=case_name)
 
     def _execute_case(self, config, case_name):
-        logging.info(f"Executing case {case_name}")
+        logging.info("Executing case %s", case_name)
         python = os.getenv("PYTHON", "python")
 
         relay_mock = _spawn([python, "test/utils/relay.py", "2500"])
